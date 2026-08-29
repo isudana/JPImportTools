@@ -19,4 +19,5 @@ export type VehicleReferencePrice = {
   website_value_jpy: number;
   shipping_insurance_jpy: number;
   cif_jpy: number;
+  updated_at: string;
 };
