@@ -5,7 +5,7 @@ A utility toolkit for car importers — accessible from anywhere, deployed on Ve
 ## 1. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com), sign up, and create a new project (free tier is fine).
-2. Open **SQL Editor**, paste in the full contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `chassis_year_ranges` reference table (used by YOM Lookup) and seeds it with the JAMA chassis-code/serial-number data. Safe to re-run any time.
+2. Open **SQL Editor**, paste in the full contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `chassis_year_ranges` reference table (used by YOM Lookup) and the `vehicle_reference_prices` table (used by the Tax Calculator), seeded with data. Safe to re-run any time — it drops and recreates both tables.
 3. Go to **Authentication → Providers** and make sure Email is enabled. Under **Authentication → Settings**, decide whether to allow public sign-ups, or add users manually from the dashboard (**Authentication → Users → Add user**) if you want to control who has access.
 4. Go to **Project Settings → API** and copy the **Project URL** and **anon public** key.
 
@@ -30,6 +30,8 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 
 - **Grade Search** (`/grade-search`) — links to the official manufacturer grade-lookup portals for Toyota, Honda, Mazda, Suzuki, Mitsubishi, and Nissan.
 - **YOM Lookup** (`/yom-lookup`) — enter a chassis code + serial number to get the vehicle's manufacture year and import eligibility (2024+), backed by the `chassis_year_ranges` table from `supabase/schema.sql`.
+- **Vehicle Tax Calculator** (`/tax-calculator`) — estimates Sri Lanka Customs duty (CID, SUR, XID, VAT, VEL, LXT, SSCL) from buying price, shipping/handling/insurance, engine capacity/fuel, and exchange rate. Customs CIF is always the higher of the invoiced cost or the Yellow Book reference price for the matched model (from the `vehicle_reference_prices` table), shown explicitly so it's clear which basis was used.
+- **Settings** (`/settings`) — add, edit, and delete the vehicle reference prices used by the Tax Calculator's Yellow Book lookup. CIF (JPY) is derived automatically from Website Value (FOB with taxes) and average Shipping & Insurance: `CIF = (Website Value × 100/110) × 0.85 + Shipping & Insurance`.
 
 More utilities will be added under `src/app/(app)/`.
 

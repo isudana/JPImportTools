@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const LINKS = [{ href: "/", label: "Utilities" }];
+const LINKS = [
+  { href: "/", label: "Utilities" },
+  { href: "/settings", label: "Settings" },
+];
 
 export default function NavBar() {
   const pathname = usePathname();

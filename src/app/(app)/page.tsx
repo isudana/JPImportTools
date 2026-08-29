@@ -11,6 +11,11 @@ const UTILITIES = [
     title: "YOM Lookup",
     description: "Look up a vehicle's manufacture year from its chassis code and serial number.",
   },
+  {
+    href: "/tax-calculator",
+    title: "Vehicle Tax Calculator",
+    description: "Estimate Sri Lanka Customs duty (CID, SUR, XID, VAT, VEL, LXT, SSCL) for an import.",
+  },
 ];
 
 export default function HomePage() {
