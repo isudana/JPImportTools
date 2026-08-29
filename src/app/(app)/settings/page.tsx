@@ -26,6 +26,10 @@ const EMPTY_FORM: FormState = {
   shipping_insurance_jpy: "",
 };
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString("en-LK", { dateStyle: "medium", timeStyle: "short" });
+}
+
 function previewCif(websiteValue: string, shippingInsurance: string): number | null {
   const wv = Number(websiteValue);
   const si = Number(shippingInsurance);
@@ -265,6 +269,7 @@ export default function SettingsPage() {
                   <th className="px-3 py-2">Website Value</th>
                   <th className="px-3 py-2">Shipping & Ins.</th>
                   <th className="px-3 py-2">CIF (JPY)</th>
+                  <th className="px-3 py-2">Last Modified</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -334,6 +339,7 @@ export default function SettingsPage() {
                       <td className="px-3 py-2 text-gray-500">
                         {previewCif(editForm.website_value_jpy, editForm.shipping_insurance_jpy)?.toLocaleString() ?? "—"}
                       </td>
+                      <td className="px-3 py-2 text-gray-500">{formatDate(v.updated_at)}</td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <button
                           onClick={() => handleEditSave(v.id)}
@@ -359,6 +365,7 @@ export default function SettingsPage() {
                       <td className="px-3 py-2 text-gray-600">{v.website_value_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-600">{v.shipping_insurance_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-600">{v.cif_jpy.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-gray-500">{formatDate(v.updated_at)}</td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <button onClick={() => startEdit(v)} className="mr-2 text-xs font-medium text-gray-900 hover:underline">
                           Edit
@@ -372,7 +379,7 @@ export default function SettingsPage() {
                 )}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-3 py-6 text-center text-sm text-gray-500">
                       No vehicles found.
                     </td>
                   </tr>

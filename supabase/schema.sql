@@ -1833,9 +1833,22 @@ create table vehicle_reference_prices (
   cif_jpy numeric generated always as (
     round((((website_value_jpy * 100 / 110) * 0.85) + shipping_insurance_jpy)::numeric, 2)
   ) stored,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 create index vehicle_reference_prices_name_idx on vehicle_reference_prices (name);
+
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger vehicle_reference_prices_set_updated_at
+before update on vehicle_reference_prices
+for each row execute function set_updated_at();
 
 insert into vehicle_reference_prices (name, model_code, display_name, grade, capacity, fuel, website_value_jpy, shipping_insurance_jpy) values
 ('AQUA HYBRID 1500CC HYBRID X', null, 'AQUA', 'X', 1500.0, 'Hybrid', 2146000.0, 110000.0),

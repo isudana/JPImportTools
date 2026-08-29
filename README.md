@@ -32,6 +32,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 - **YOM Lookup** (`/yom-lookup`) — enter a chassis code + serial number to get the vehicle's manufacture year and import eligibility (2024+), backed by the `chassis_year_ranges` table from `supabase/schema.sql`.
 - **Vehicle Tax Calculator** (`/tax-calculator`) — estimates Sri Lanka Customs duty (CID, SUR, XID, VAT, VEL, LXT, SSCL) from buying price, shipping/handling/insurance, engine capacity/fuel, and exchange rate. Customs CIF is always the higher of the invoiced cost or the Yellow Book reference price for the matched model (from the `vehicle_reference_prices` table), shown explicitly so it's clear which basis was used.
 - **Settings** (`/settings`) — add, edit, and delete the vehicle reference prices used by the Tax Calculator's Yellow Book lookup. CIF (JPY) is derived automatically from Website Value (FOB with taxes) and average Shipping & Insurance: `CIF = (Website Value × 100/110) × 0.85 + Shipping & Insurance`.
+- **Resources** (`/resources`) — links for sourcing, shipping, and exchange rates (auction sites, shipping schedules, Bank of Ceylon / Sri Lanka Customs rate pages).
 
 More utilities will be added under `src/app/(app)/`.
 
