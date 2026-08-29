@@ -42,6 +42,9 @@ export default function TaxCalculatorPage() {
     if (match) {
       setCapacity(String(match.capacity));
       setFuel(match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol");
+      const depreciatedFob = Math.round((((match.website_value_jpy * 100) / 110) * 0.85) * 100) / 100;
+      setBuyingPrice(String(depreciatedFob));
+      setShippingInsurance(String(match.shipping_insurance_jpy));
     }
   }
 
@@ -102,7 +105,7 @@ export default function TaxCalculatorPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
         <label className="block">
-          <span className="block text-xs font-medium text-gray-500">Vehicle (optional — enables Yellow Book comparison)</span>
+          <span className="block text-xs font-medium text-gray-500">Vehicle</span>
           <input
             list="vehicle-options"
             value={vehicleName}
