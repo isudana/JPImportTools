@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 import { depreciatedFob } from "@/lib/vehiclePricing";
-import type { FuelCategory } from "@/lib/taxRates";
+import { calculateTax, type FuelCategory } from "@/lib/taxRates";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
 const JPY = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -47,7 +47,8 @@ export default function QuotationPage() {
   const [colour, setColour] = useState("");
   const [auctionGrade, setAuctionGrade] = useState("");
   const [buyingPrice, setBuyingPrice] = useState("");
-  const [shippingHandling, setShippingHandling] = useState("");
+  const [exporterShippingHandling, setExporterShippingHandling] = useState("");
+  const [importerShippingHandling, setImporterShippingHandling] = useState("");
   const [lcValue, setLcValue] = useState("");
   const [ttValue, setTtValue] = useState("");
   const [bankLcCharges, setBankLcCharges] = useState("");
@@ -88,9 +89,18 @@ export default function QuotationPage() {
     setVehicleName(value);
     const match = vehicles.find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
     if (match) {
+      const matchFuel: FuelCategory =
+        match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
       setCapacity(String(match.capacity));
-      setFuel(match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol");
+      setFuel(matchFuel);
       setLcValue(String(depreciatedFob(match.website_value_jpy)));
+
+      const rate = Number(customsRate);
+      if (Number.isFinite(rate) && rate > 0) {
+        const yellowBookCifLkr = match.cif_jpy * rate;
+        const tax = calculateTax(matchFuel, match.capacity, yellowBookCifLkr, false);
+        setTaxAmount(String(Math.round(tax.total * 100) / 100));
+      }
     }
   }
 
@@ -101,7 +111,8 @@ export default function QuotationPage() {
 
     const fields = {
       buyingPrice: Number(buyingPrice),
-      shippingHandling: Number(shippingHandling || 0),
+      exporterShippingHandling: Number(exporterShippingHandling || 0),
+      importerShippingHandling: Number(importerShippingHandling || 0),
       lcValue: Number(lcValue),
       ttValue: Number(ttValue || 0),
       bankLcCharges: Number(bankLcCharges || 0),
@@ -130,7 +141,7 @@ export default function QuotationPage() {
       return;
     }
 
-    const totalCostJapan = fields.buyingPrice + fields.shippingHandling;
+    const totalCostJapan = fields.buyingPrice + fields.exporterShippingHandling + fields.importerShippingHandling;
     const lcCostLkr = fields.lcValue * fields.lcRate;
     const ttCostLkr = fields.ttValue * fields.ttRate;
     const totalLkr =
@@ -234,17 +245,26 @@ export default function QuotationPage() {
               />
             </label>
             <label className="block">
-              <span className="block text-xs font-medium text-gray-500">Shipping &amp; Handling</span>
+              <span className="block text-xs font-medium text-gray-500">Exporter Shipping &amp; Handling</span>
               <input
-                value={shippingHandling}
-                onChange={(e) => setShippingHandling(e.target.value)}
-                placeholder="e.g. 110000"
+                value={exporterShippingHandling}
+                onChange={(e) => setExporterShippingHandling(e.target.value)}
+                placeholder="e.g. 50000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">Importer Shipping &amp; Handling</span>
+              <input
+                value={importerShippingHandling}
+                onChange={(e) => setImporterShippingHandling(e.target.value)}
+                placeholder="e.g. 60000"
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
             <label className="block">
               <span className="block text-xs font-medium text-gray-500">LC Value</span>
               <input
@@ -254,16 +274,17 @@ export default function QuotationPage() {
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </label>
-            <label className="block">
-              <span className="block text-xs font-medium text-gray-500">TT Value</span>
-              <input
-                value={ttValue}
-                onChange={(e) => setTtValue(e.target.value)}
-                placeholder="e.g. 0"
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-              />
-            </label>
           </div>
+
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">TT Value</span>
+            <input
+              value={ttValue}
+              onChange={(e) => setTtValue(e.target.value)}
+              placeholder="e.g. 0"
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
         </Section>
 
         <Section title="Costs in LKR" color="emerald">
@@ -330,14 +351,14 @@ export default function QuotationPage() {
               <input
                 value={taxAmount}
                 onChange={(e) => setTaxAmount(e.target.value)}
-                placeholder="from the Tax Calculator"
+                placeholder="auto-filled from Yellow Book CIF once a vehicle is selected"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </label>
           </div>
           <p className="text-xs text-emerald-700/70">
-            Rates default from Settings. Customs rate is shown on the quotation for reference — Tax Amount above is
-            entered directly (e.g. from the Tax Calculator), not recomputed here.
+            Rates default from Settings. Selecting a vehicle auto-fills Tax Amount from its Yellow Book CIF (Depreciated
+            FOB + Shipping &amp; Insurance) at the Customs rate — still editable if the actual duty differs.
           </p>
         </Section>
 
@@ -376,7 +397,7 @@ export default function QuotationPage() {
               <dt className="text-amber-700/60">Buying Price</dt>
               <dd>{fmtJpy(Number(buyingPrice))}</dd>
               <dt className="text-amber-700/60">Shipping &amp; Handling</dt>
-              <dd>{fmtJpy(Number(shippingHandling || 0))}</dd>
+              <dd>{fmtJpy(Number(exporterShippingHandling || 0) + Number(importerShippingHandling || 0))}</dd>
               <dt className="font-semibold text-amber-900">Total Cost in Japan</dt>
               <dd className="font-semibold text-amber-900">{fmtJpy(output.totalCostJapan)}</dd>
               <dt className="text-amber-700/60">LC Value</dt>
