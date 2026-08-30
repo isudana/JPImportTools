@@ -92,9 +92,9 @@ export default function QuotationPage() {
   }
 
   // Recomputes TT Value (Total Cost in Japan − LC Value) and, when a vehicle is matched, Tax Amount.
-  // Tax Amount uses the vehicle's Yellow Book CIF normally, but when TT Value comes out to 0 — meaning
-  // the full cost is going through LC, not split with a TT payment — it uses the actual invoiced
-  // Buying Price + Exporter Shipping & Handling instead.
+  // Tax Amount uses the vehicle's Yellow Book CIF normally, but when LC Value exceeds that Yellow
+  // Book CIF (JPY) — meaning what's being declared via LC alone already exceeds the reference value —
+  // it uses the actual invoiced Buying Price + Exporter Shipping & Handling instead.
   function recomputeDerived(
     overrides: Partial<{
       buyingPrice: string;
@@ -117,7 +117,7 @@ export default function QuotationPage() {
     const rate = Number(customsRate);
     if (!Number.isFinite(rate) || rate <= 0) return;
 
-    const cifLkr = newTt === 0 ? (bp + esh) * rate : vehicle.cif_jpy * rate;
+    const cifLkr = lc > vehicle.cif_jpy ? (bp + esh) * rate : vehicle.cif_jpy * rate;
     const tax = calculateTax(vehicleFuelCategory(vehicle), vehicle.capacity, cifLkr, false);
     setTaxAmount(String(Math.round(tax.total * 100) / 100));
   }
@@ -426,8 +426,8 @@ export default function QuotationPage() {
           </div>
           <p className="text-xs text-emerald-700/70">
             Rates default from Settings. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
-            Shipping &amp; Insurance) at the Customs rate — except when TT Value is 0, where it uses Buying Price +
-            Exporter Shipping &amp; Handling instead. Still editable if the actual duty differs.
+            Shipping &amp; Insurance) at the Customs rate — except when LC Value exceeds that Yellow Book CIF, where it
+            uses Buying Price + Exporter Shipping &amp; Handling instead. Still editable if the actual duty differs.
           </p>
         </Section>
 
