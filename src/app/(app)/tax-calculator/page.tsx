@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { VehicleReferencePrice } from "@/lib/types";
-import { calculateTax, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
+import { calculateTaxLineItems, type FuelCategory, type TaxLineItem } from "@/lib/taxRates";
 import { depreciatedFob } from "@/lib/vehiclePricing";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
@@ -23,7 +23,8 @@ export default function TaxCalculatorPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<{
-    breakdown: TaxBreakdown;
+    lineItems: TaxLineItem[];
+    cif: number;
     invoicedCif: number;
     yellowBookCif: number | null;
     basis: "Invoiced Price" | "Yellow Book Reference Price";
@@ -85,7 +86,8 @@ export default function TaxCalculatorPage() {
       yellowBookCif != null && yellowBookCif > invoicedCif ? "Yellow Book Reference Price" : "Invoiced Price";
 
     setOutput({
-      breakdown: calculateTax(fuel, cap, customsCif, yomWithinOneYear),
+      lineItems: calculateTaxLineItems(fuel, cap, customsCif, yomWithinOneYear),
+      cif: customsCif,
       invoicedCif,
       yellowBookCif,
       basis,
@@ -212,30 +214,36 @@ export default function TaxCalculatorPage() {
               <dt className="text-gray-400">Yellow Book CIF (LKR)</dt>
               <dd>{output.yellowBookCif != null ? fmt(output.yellowBookCif) : "N/A — vehicle not matched"}</dd>
               <dt className="text-gray-400 font-medium text-gray-900">Customs CIF used (LKR)</dt>
-              <dd className="font-medium text-gray-900">{fmt(output.breakdown.cif)}</dd>
+              <dd className="font-medium text-gray-900">{fmt(output.cif)}</dd>
             </dl>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-sm font-medium text-gray-900">Tax Breakdown</p>
-            <dl className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-600">
-              <dt className="text-gray-400">CID (30%)</dt>
-              <dd>{fmt(output.breakdown.cid)}</dd>
-              <dt className="text-gray-400">SUR (50% of CID)</dt>
-              <dd>{fmt(output.breakdown.sur)}</dd>
-              <dt className="text-gray-400">XID (Excise Duty)</dt>
-              <dd>{fmt(output.breakdown.xid)}</dd>
-              <dt className="text-gray-400">VAT (18%)</dt>
-              <dd>{fmt(output.breakdown.vat)}</dd>
-              <dt className="text-gray-400">VEL</dt>
-              <dd>{fmt(output.breakdown.vel)}</dd>
-              <dt className="text-gray-400">LXT (Luxury Tax)</dt>
-              <dd>{fmt(output.breakdown.lxt)}</dd>
-              <dt className="text-gray-400">SSCL (2.5%)</dt>
-              <dd>{fmt(output.breakdown.sscl)}</dd>
-              <dt className="font-medium text-gray-900">Total Tax</dt>
-              <dd className="font-medium text-gray-900">{fmt(output.breakdown.total)}</dd>
-            </dl>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="min-w-full text-sm">
+              <thead className="border-b border-gray-200 text-left text-xs text-gray-400">
+                <tr>
+                  <th className="px-4 py-2">Tax Type</th>
+                  <th className="px-4 py-2">Tax Base</th>
+                  <th className="px-4 py-2">Rate</th>
+                  <th className="px-4 py-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {output.lineItems.map((item) => (
+                  <tr
+                    key={item.type}
+                    className={`border-b border-gray-100 last:border-0 ${
+                      item.type === "Total" ? "font-medium text-gray-900" : "text-gray-600"
+                    }`}
+                  >
+                    <td className="px-4 py-2">{item.type}</td>
+                    <td className="px-4 py-2">{item.base != null ? fmt(item.base) : "—"}</td>
+                    <td className="px-4 py-2">{item.rate}</td>
+                    <td className="px-4 py-2">{fmt(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
