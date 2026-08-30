@@ -1979,3 +1979,23 @@ create policy "read vehicle_reference_prices" on vehicle_reference_prices for se
 create policy "insert vehicle_reference_prices" on vehicle_reference_prices for insert with check (auth.role() = 'authenticated');
 create policy "update vehicle_reference_prices" on vehicle_reference_prices for update using (auth.role() = 'authenticated');
 create policy "delete vehicle_reference_prices" on vehicle_reference_prices for delete using (auth.role() = 'authenticated');
+
+drop table if exists app_settings cascade;
+
+create table app_settings (
+  id int primary key default 1,
+  default_lc_rate numeric not null default 2.10,
+  default_tt_rate numeric not null default 2.10,
+  default_customs_rate numeric not null default 2.10,
+  updated_at timestamptz not null default now(),
+  constraint app_settings_singleton check (id = 1)
+);
+insert into app_settings (id) values (1);
+
+create trigger app_settings_set_updated_at
+before update on app_settings
+for each row execute function set_updated_at();
+
+alter table app_settings enable row level security;
+create policy "read app_settings" on app_settings for select using (auth.role() = 'authenticated');
+create policy "update app_settings" on app_settings for update using (auth.role() = 'authenticated');

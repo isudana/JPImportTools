@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { VehicleReferencePrice } from "@/lib/types";
 import { calculateTax, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
+import { depreciatedFob } from "@/lib/vehiclePricing";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
 const fmt = (n: number) => `Rs. ${LKR.format(n)}`;
@@ -42,8 +43,7 @@ export default function TaxCalculatorPage() {
     if (match) {
       setCapacity(String(match.capacity));
       setFuel(match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol");
-      const depreciatedFob = Math.round((((match.website_value_jpy * 100) / 110) * 0.85) * 100) / 100;
-      setBuyingPrice(String(depreciatedFob));
+      setBuyingPrice(String(depreciatedFob(match.website_value_jpy)));
       setShippingInsurance(String(match.shipping_insurance_jpy));
     }
   }

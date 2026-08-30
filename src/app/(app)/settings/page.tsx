@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { VehicleReferencePrice } from "@/lib/types";
+import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 
 type FormState = {
   name: string;
@@ -48,6 +48,9 @@ export default function SettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
 
+  const [ratesForm, setRatesForm] = useState({ lc: "", tt: "", customs: "" });
+  const [ratesMessage, setRatesMessage] = useState<string | null>(null);
+
   async function refresh() {
     setLoading(true);
     const { data, error: queryError } = await supabase
@@ -74,6 +77,24 @@ export default function SettingsPage() {
           return;
         }
         setVehicles((data ?? []) as VehicleReferencePrice[]);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const settings = data as AppSettings | null;
+        if (!settings) return;
+        setRatesForm({
+          lc: String(settings.default_lc_rate),
+          tt: String(settings.default_tt_rate),
+          customs: String(settings.default_customs_rate),
+        });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -169,6 +190,23 @@ export default function SettingsPage() {
     refresh();
   }
 
+  async function handleSaveRates(e: React.FormEvent) {
+    e.preventDefault();
+    setRatesMessage(null);
+    const lc = Number(ratesForm.lc);
+    const tt = Number(ratesForm.tt);
+    const customs = Number(ratesForm.customs);
+    if (![lc, tt, customs].every((n) => Number.isFinite(n) && n > 0)) {
+      setRatesMessage("Enter valid rates for LC, TT, and Customs.");
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("app_settings")
+      .update({ default_lc_rate: lc, default_tt_rate: tt, default_customs_rate: customs })
+      .eq("id", 1);
+    setRatesMessage(updateError ? updateError.message : "Saved.");
+  }
+
   const addCif = previewCif(addForm.website_value_jpy, addForm.shipping_insurance_jpy);
 
   return (
@@ -179,6 +217,46 @@ export default function SettingsPage() {
       </div>
 
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
+      <form onSubmit={handleSaveRates} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+        <p className="text-sm font-medium text-gray-900">Default Exchange Rates</p>
+        <p className="text-xs text-gray-500">Used to prefill the Quotation Generator&apos;s rate fields.</p>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">LC JPY to LKR Rate</span>
+            <input
+              value={ratesForm.lc}
+              onChange={(e) => setRatesForm({ ...ratesForm, lc: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">TT JPY to LKR Rate</span>
+            <input
+              value={ratesForm.tt}
+              onChange={(e) => setRatesForm({ ...ratesForm, tt: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
+            <input
+              value={ratesForm.customs}
+              onChange={(e) => setRatesForm({ ...ratesForm, customs: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-between">
+          {ratesMessage && <p className="text-xs text-gray-500">{ratesMessage}</p>}
+          <button
+            type="submit"
+            className="ml-auto rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          >
+            Save Rates
+          </button>
+        </div>
+      </form>
 
       <form onSubmit={handleAdd} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
         <p className="text-sm font-medium text-gray-900">Add Vehicle</p>
