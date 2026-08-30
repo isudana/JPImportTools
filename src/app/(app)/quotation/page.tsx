@@ -59,7 +59,7 @@ export default function QuotationPage() {
   const [ttRate, setTtRate] = useState("");
   const [customsRate, setCustomsRate] = useState("");
 
-  const [exporterBaseForCalc, setExporterBaseForCalc] = useState<number | null>(null);
+  const [matchedVehicle, setMatchedVehicle] = useState<VehicleReferencePrice | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<Output | null>(null);
@@ -87,46 +87,60 @@ export default function QuotationPage() {
       });
   }, [supabase]);
 
-  function recomputeTtValue(
+  function vehicleFuelCategory(vehicle: VehicleReferencePrice): FuelCategory {
+    return vehicle.fuel === "Hybrid" ? "Hybrid" : vehicle.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
+  }
+
+  // Recomputes TT Value (Total Cost in Japan − LC Value) and, when a vehicle is matched, Tax Amount.
+  // Tax Amount uses the vehicle's Yellow Book CIF normally, but when TT Value comes out to 0 — meaning
+  // the full cost is going through LC, not split with a TT payment — it uses the actual invoiced
+  // Buying Price + Exporter Shipping & Handling instead.
+  function recomputeDerived(
     overrides: Partial<{
       buyingPrice: string;
       exporterShippingHandling: string;
       importerShippingHandling: string;
       lcValue: string;
+      vehicle: VehicleReferencePrice | null;
     }>,
   ) {
-    const totalCostJapan =
-      Number((overrides.buyingPrice ?? buyingPrice) || 0) +
-      Number((overrides.exporterShippingHandling ?? exporterShippingHandling) || 0) +
-      Number((overrides.importerShippingHandling ?? importerShippingHandling) || 0);
+    const bp = Number((overrides.buyingPrice ?? buyingPrice) || 0);
+    const esh = Number((overrides.exporterShippingHandling ?? exporterShippingHandling) || 0);
+    const ish = Number((overrides.importerShippingHandling ?? importerShippingHandling) || 0);
     const lc = Number((overrides.lcValue ?? lcValue) || 0);
-    setTtValue(String(Math.round((totalCostJapan - lc) * 100) / 100));
+    const totalCostJapan = bp + esh + ish;
+    const newTt = Math.round((totalCostJapan - lc) * 100) / 100;
+    setTtValue(String(newTt));
+
+    const vehicle = overrides.vehicle !== undefined ? overrides.vehicle : matchedVehicle;
+    if (!vehicle) return;
+    const rate = Number(customsRate);
+    if (!Number.isFinite(rate) || rate <= 0) return;
+
+    const cifLkr = newTt === 0 ? (bp + esh) * rate : vehicle.cif_jpy * rate;
+    const tax = calculateTax(vehicleFuelCategory(vehicle), vehicle.capacity, cifLkr, false);
+    setTaxAmount(String(Math.round(tax.total * 100) / 100));
   }
 
   function handleVehicleNameChange(value: string) {
     setVehicleName(value);
     const match = vehicles.find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
     if (match) {
-      const matchFuel: FuelCategory =
-        match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
       const newLcValue = String(depreciatedFob(match.website_value_jpy));
       const exporterBase = match.exporter_base_price_jpy ?? 0;
       const newExporterShippingHandling = String(
         Math.round((exporterBase + Number(buyingPrice || 0) / 10) * 100) / 100,
       );
       setCapacity(String(match.capacity));
-      setFuel(matchFuel);
+      setFuel(vehicleFuelCategory(match));
       setLcValue(newLcValue);
-      setExporterBaseForCalc(exporterBase);
+      setMatchedVehicle(match);
       setExporterShippingHandling(newExporterShippingHandling);
-      recomputeTtValue({ lcValue: newLcValue, exporterShippingHandling: newExporterShippingHandling });
-
-      const rate = Number(customsRate);
-      if (Number.isFinite(rate) && rate > 0) {
-        const yellowBookCifLkr = match.cif_jpy * rate;
-        const tax = calculateTax(matchFuel, match.capacity, yellowBookCifLkr, false);
-        setTaxAmount(String(Math.round(tax.total * 100) / 100));
-      }
+      recomputeDerived({
+        lcValue: newLcValue,
+        exporterShippingHandling: newExporterShippingHandling,
+        vehicle: match,
+      });
     }
   }
 
@@ -268,14 +282,15 @@ export default function QuotationPage() {
                 onChange={(e) => {
                   const newBuyingPrice = e.target.value;
                   setBuyingPrice(newBuyingPrice);
-                  if (exporterBaseForCalc != null) {
+                  if (matchedVehicle) {
+                    const exporterBase = matchedVehicle.exporter_base_price_jpy ?? 0;
                     const newExporterShippingHandling = String(
-                      Math.round((exporterBaseForCalc + Number(newBuyingPrice || 0) / 10) * 100) / 100,
+                      Math.round((exporterBase + Number(newBuyingPrice || 0) / 10) * 100) / 100,
                     );
                     setExporterShippingHandling(newExporterShippingHandling);
-                    recomputeTtValue({ buyingPrice: newBuyingPrice, exporterShippingHandling: newExporterShippingHandling });
+                    recomputeDerived({ buyingPrice: newBuyingPrice, exporterShippingHandling: newExporterShippingHandling });
                   } else {
-                    recomputeTtValue({ buyingPrice: newBuyingPrice });
+                    recomputeDerived({ buyingPrice: newBuyingPrice });
                   }
                 }}
                 placeholder="e.g. 1200000"
@@ -288,7 +303,7 @@ export default function QuotationPage() {
                 value={exporterShippingHandling}
                 onChange={(e) => {
                   setExporterShippingHandling(e.target.value);
-                  recomputeTtValue({ exporterShippingHandling: e.target.value });
+                  recomputeDerived({ exporterShippingHandling: e.target.value });
                 }}
                 placeholder="e.g. 50000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -306,7 +321,7 @@ export default function QuotationPage() {
                 value={importerShippingHandling}
                 onChange={(e) => {
                   setImporterShippingHandling(e.target.value);
-                  recomputeTtValue({ importerShippingHandling: e.target.value });
+                  recomputeDerived({ importerShippingHandling: e.target.value });
                 }}
                 placeholder="e.g. 60000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -318,7 +333,7 @@ export default function QuotationPage() {
                 value={lcValue}
                 onChange={(e) => {
                   setLcValue(e.target.value);
-                  recomputeTtValue({ lcValue: e.target.value });
+                  recomputeDerived({ lcValue: e.target.value });
                 }}
                 placeholder="e.g. 1500000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -410,8 +425,9 @@ export default function QuotationPage() {
             </label>
           </div>
           <p className="text-xs text-emerald-700/70">
-            Rates default from Settings. Selecting a vehicle auto-fills Tax Amount from its Yellow Book CIF (Depreciated
-            FOB + Shipping &amp; Insurance) at the Customs rate — still editable if the actual duty differs.
+            Rates default from Settings. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
+            Shipping &amp; Insurance) at the Customs rate — except when TT Value is 0, where it uses Buying Price +
+            Exporter Shipping &amp; Handling instead. Still editable if the actual duty differs.
           </p>
         </Section>
 
