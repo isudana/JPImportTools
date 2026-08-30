@@ -509,12 +509,6 @@ export default function QuotationPage() {
               <dd>{fmtLkr(Number(importerFee || 0))}</dd>
               <dt className="text-emerald-700/60">Tax Amount</dt>
               <dd>{fmtLkr(Number(taxAmount || 0))}</dd>
-              {minTaxAmount != null && (
-                <>
-                  <dt className="text-emerald-700/60">Minimum Tax Amount (view only, Yellow Book CIF)</dt>
-                  <dd>{fmtLkr(minTaxAmount)}</dd>
-                </>
-              )}
               <dt className="text-emerald-700/60">Customs Rate (reference)</dt>
               <dd>{customsRate}</dd>
             </dl>
