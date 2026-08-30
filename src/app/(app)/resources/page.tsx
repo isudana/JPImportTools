@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep" | "redLight";
 
 const BADGE_STYLES: Record<BadgeColor, string> = {
@@ -8,13 +10,21 @@ const BADGE_STYLES: Record<BadgeColor, string> = {
   redLight: "bg-red-200 text-red-900",
 };
 
-const RESOURCES: { title: string; url: string; description: string; icon: string; color: BadgeColor }[] = [
+const RESOURCES: {
+  title: string;
+  url: string;
+  description: string;
+  icon: string;
+  color: BadgeColor;
+  logo?: string;
+}[] = [
   {
     title: "Japan Auction (JP Center)",
     url: "https://jpcenter.ru/",
     description: "Japan vehicle auction search/listings",
     icon: "🔨",
     color: "red",
+    logo: "/logos/jpcenter.jpeg",
   },
   {
     title: "Vehicle Shipping Schedules",
@@ -29,6 +39,7 @@ const RESOURCES: { title: string; url: string; description: string; icon: string
     description: "BOC daily exchange rates and tariffs",
     icon: "🏦",
     color: "redDeep",
+    logo: "/logos/boc.png",
   },
   {
     title: "Sri Lanka Customs Exchange Rates",
@@ -36,6 +47,7 @@ const RESOURCES: { title: string; url: string; description: string; icon: string
     description: "Official customs exchange rates for duty calculation",
     icon: "🏛️",
     color: "roseDeep",
+    logo: "/logos/customs.png",
   },
   {
     title: "Vehicle History Check",
@@ -43,6 +55,7 @@ const RESOURCES: { title: string; url: string; description: string; icon: string
     description: "Japan vehicle history and export certificate lookup",
     icon: "📜",
     color: "redLight",
+    logo: "/logos/Vehicle_history_check.png",
   },
 ];
 
@@ -63,9 +76,17 @@ export default function ResourcesPage() {
             rel="noopener noreferrer"
             className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 hover:border-red-400"
           >
-            <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg text-xl ${BADGE_STYLES[r.color]}`}>
-              {r.icon}
-            </span>
+            {r.logo ? (
+              <span className="flex h-10 w-14 flex-none items-center justify-center overflow-hidden rounded-md bg-white">
+                <Image src={r.logo} alt="" width={56} height={40} className="h-full w-full object-contain" />
+              </span>
+            ) : (
+              <span
+                className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg text-xl ${BADGE_STYLES[r.color]}`}
+              >
+                {r.icon}
+              </span>
+            )}
             <span className="min-w-0">
               <p className="font-medium text-gray-900">{r.title}</p>
               <p className="mt-1 text-sm text-gray-500">{r.description}</p>
