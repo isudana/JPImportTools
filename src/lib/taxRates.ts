@@ -46,26 +46,46 @@ const SERIES_HYBRID_XID_BANDS: { max: number; underOneYear: number; overOneYear:
   { max: Infinity, underOneYear: 111090, overOneYear: 139440 },
 ];
 
-export function calculateXid(fuel: FuelCategory, capacity: number, yomWithinOneYear: boolean): number {
+// capacity/kW is the base and rateLabel describes the per-unit rate applied, except for the flat
+// bands (Hybrid <1000cc, and Petrol/other <1000cc when the flat floor exceeds the per-cc amount),
+// where there is no meaningful base — the amount is a fixed sum regardless of capacity.
+type XidDetail = { base: number | null; rateLabel: string; amount: number };
+
+function xidDetail(fuel: FuelCategory, capacity: number, yomWithinOneYear: boolean): XidDetail {
   if (fuel === "Series_Hybrid") {
     const band = SERIES_HYBRID_XID_BANDS.find((b) => capacity < b.max)!;
-    return yomWithinOneYear ? band.underOneYear : band.overOneYear;
+    const rate = yomWithinOneYear ? band.underOneYear : band.overOneYear;
+    return { base: capacity, rateLabel: `JPY ${rate.toLocaleString()} / kW`, amount: rate * capacity };
   }
   if (fuel === "Hybrid") {
-    if (capacity < 1000) return HYBRID_UNDER_1000_FLAT;
+    if (capacity < 1000) return { base: null, rateLabel: "Flat", amount: HYBRID_UNDER_1000_FLAT };
     const band = HYBRID_XID_BANDS.find((b) => capacity < b.max)!;
-    return band.ratePerCc * capacity;
+    return { base: capacity, rateLabel: `JPY ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
   }
-  if (capacity < 1000) return Math.max(PETROL_UNDER_1000_FLOOR, capacity * PETROL_XID_BANDS[0].ratePerCc);
+  if (capacity < 1000) {
+    const perCc = capacity * PETROL_XID_BANDS[0].ratePerCc;
+    if (perCc < PETROL_UNDER_1000_FLOOR) return { base: null, rateLabel: "Flat (floor)", amount: PETROL_UNDER_1000_FLOOR };
+    return { base: capacity, rateLabel: `JPY ${PETROL_XID_BANDS[0].ratePerCc.toLocaleString()} / cc`, amount: perCc };
+  }
   const band = PETROL_XID_BANDS.find((b) => capacity < b.max)!;
-  return band.ratePerCc * capacity;
+  return { base: capacity, rateLabel: `JPY ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
+}
+
+export function calculateXid(fuel: FuelCategory, capacity: number, yomWithinOneYear: boolean): number {
+  return xidDetail(fuel, capacity, yomWithinOneYear).amount;
+}
+
+type LxtDetail = { base: number; rate: number; amount: number };
+
+function lxtDetail(fuel: FuelCategory, cif: number): LxtDetail {
+  const threshold = fuel === "Hybrid" ? 5_500_000 : fuel === "Series_Hybrid" ? 6_000_000 : 5_000_000;
+  const base = Math.max(0, cif - threshold);
+  const rate = fuel === "Hybrid" ? 0.8 : 1;
+  return { base, rate, amount: base * rate };
 }
 
 export function calculateLxt(fuel: FuelCategory, cif: number): number {
-  const threshold = fuel === "Hybrid" ? 5_500_000 : fuel === "Series_Hybrid" ? 6_000_000 : 5_000_000;
-  const excess = Math.max(0, cif - threshold);
-  const rate = fuel === "Hybrid" ? 0.8 : 1;
-  return excess * rate;
+  return lxtDetail(fuel, cif).amount;
 }
 
 export type TaxBreakdown = {
@@ -91,4 +111,40 @@ export function calculateTax(fuel: FuelCategory, capacity: number, cif: number, 
   const sscl = dutyBase * SSCL_RATE;
   const total = cid + sur + xid + vat + vel + lxt + sscl;
   return { cif, cid, sur, xid, vat, vel, lxt, sscl, total };
+}
+
+export type TaxLineItem = {
+  type: string;
+  base: number | null;
+  rate: string;
+  amount: number;
+};
+
+// Same math as calculateTax, laid out as Tax Type / Tax Base / Rate / Amount rows.
+export function calculateTaxLineItems(
+  fuel: FuelCategory,
+  capacity: number,
+  cif: number,
+  yomWithinOneYear: boolean,
+): TaxLineItem[] {
+  const cid = cif * CID_RATE;
+  const sur = cid * SUR_RATE;
+  const xid = xidDetail(fuel, capacity, yomWithinOneYear);
+  const dutyBase = cif * 1.1 + cid + sur + xid.amount;
+  const vat = dutyBase * VAT_RATE;
+  const vel = VEL_AMOUNT;
+  const lxt = lxtDetail(fuel, cif);
+  const sscl = dutyBase * SSCL_RATE;
+  const total = cid + sur + xid.amount + vat + vel + lxt.amount + sscl;
+
+  return [
+    { type: "CID", base: cif, rate: `${CID_RATE * 100}%`, amount: cid },
+    { type: "SUR", base: cid, rate: `${SUR_RATE * 100}%`, amount: sur },
+    { type: "XID", base: xid.base, rate: xid.rateLabel, amount: xid.amount },
+    { type: "VAT", base: dutyBase, rate: `${VAT_RATE * 100}%`, amount: vat },
+    { type: "VEL", base: null, rate: "Flat", amount: vel },
+    { type: "LXT", base: lxt.base, rate: `${lxt.rate * 100}%`, amount: lxt.amount },
+    { type: "SSCL", base: dutyBase, rate: `${SSCL_RATE * 100}%`, amount: sscl },
+    { type: "Total", base: null, rate: "CID + SUR + XID + VAT + VEL + LXT + SSCL", amount: total },
+  ];
 }
