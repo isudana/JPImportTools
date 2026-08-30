@@ -56,7 +56,7 @@ export default function YomLookupPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
+      <div className="border-l-4 border-red-700 pl-3">
         <h1 className="text-lg font-semibold text-gray-900">YOM Lookup</h1>
         <p className="mt-1 text-sm text-gray-500">
           Look up a vehicle&apos;s manufacture year from its chassis code and serial number, based on
@@ -87,7 +87,7 @@ export default function YomLookupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
           >
             {loading ? "Looking up…" : "Look up"}
           </button>

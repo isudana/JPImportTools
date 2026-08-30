@@ -226,7 +226,7 @@ export default function QuotationPage() {
 
   return (
     <div className="max-w-2xl space-y-6 print:max-w-none">
-      <div className="print:hidden">
+      <div className="border-l-4 border-red-700 pl-3 print:hidden">
         <h1 className="text-lg font-semibold text-gray-900">Quotation Generator</h1>
         <p className="mt-1 text-sm text-gray-500">Build a cost quotation for a vehicle purchase.</p>
       </div>
@@ -486,7 +486,7 @@ export default function QuotationPage() {
 
         <button
           type="submit"
-          className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
         >
           Generate Quotation
         </button>
@@ -500,7 +500,7 @@ export default function QuotationPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 print:hidden"
+              className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 print:hidden"
             >
               Download PDF
             </button>
@@ -566,8 +566,8 @@ export default function QuotationPage() {
             </dl>
           </Section>
 
-          <div className="rounded-lg bg-gray-900 p-5 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Total Quotation Amount</p>
+          <div className="rounded-lg bg-red-800 p-5 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-red-200">Total Quotation Amount</p>
             <p className="mt-1 text-3xl font-bold text-white">{fmtLkr(output.totalLkr)}</p>
           </div>
 
