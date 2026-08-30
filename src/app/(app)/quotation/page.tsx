@@ -190,6 +190,17 @@ export default function QuotationPage() {
     setOutput({ totalCostJapan, lcCostLkr, ttCostLkr, totalLkr });
   }
 
+  const customsRateNum = Number(customsRate);
+  const minTaxAmount =
+    matchedVehicle && Number.isFinite(customsRateNum) && customsRateNum > 0
+      ? calculateTax(
+          vehicleFuelCategory(matchedVehicle),
+          matchedVehicle.capacity,
+          matchedVehicle.cif_jpy * customsRateNum,
+          false,
+        ).total
+      : null;
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -424,6 +435,14 @@ export default function QuotationPage() {
               />
             </label>
           </div>
+          {minTaxAmount != null && (
+            <div className="rounded-md border border-dashed border-emerald-300 bg-white px-3 py-2">
+              <span className="block text-xs font-medium text-gray-500">
+                Minimum Tax Amount (view only, based on Yellow Book CIF)
+              </span>
+              <span className="mt-0.5 block text-sm font-medium text-gray-900">{fmtLkr(minTaxAmount)}</span>
+            </div>
+          )}
           <p className="text-xs text-emerald-700/70">
             Rates default from Settings. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
             Shipping &amp; Insurance) at the Customs rate — except when LC Value exceeds that Yellow Book CIF, where it
@@ -490,6 +509,12 @@ export default function QuotationPage() {
               <dd>{fmtLkr(Number(importerFee || 0))}</dd>
               <dt className="text-emerald-700/60">Tax Amount</dt>
               <dd>{fmtLkr(Number(taxAmount || 0))}</dd>
+              {minTaxAmount != null && (
+                <>
+                  <dt className="text-emerald-700/60">Minimum Tax Amount (view only, Yellow Book CIF)</dt>
+                  <dd>{fmtLkr(minTaxAmount)}</dd>
+                </>
+              )}
               <dt className="text-emerald-700/60">Customs Rate (reference)</dt>
               <dd>{customsRate}</dd>
             </dl>
