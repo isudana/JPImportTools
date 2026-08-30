@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ImportDrive",
+  title: "JP ImportTools",
   description: "Utility tools for car importers",
 };
 

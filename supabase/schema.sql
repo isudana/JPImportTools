@@ -1,4 +1,4 @@
--- ImportDrive database schema. Safe to re-run: drops and recreates chassis_year_ranges.
+-- JP ImportTools database schema. Safe to re-run: drops and recreates chassis_year_ranges.
 -- Requires Supabase Auth (email/password) already enabled — no other tables needed yet.
 
 drop table if exists chassis_year_ranges cascade;
