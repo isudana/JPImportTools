@@ -506,12 +506,8 @@ export default function QuotationPage() {
 
           <Section title="Costs in LKR" color="emerald">
             <dl className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-              <dt className="text-emerald-700/60">LC Rate</dt>
-              <dd>{lcRate}</dd>
               <dt className="text-emerald-700/60">LC Cost (LC Value × LC Rate)</dt>
               <dd>{fmtLkr(output.lcCostLkr)}</dd>
-              <dt className="text-emerald-700/60">TT Rate</dt>
-              <dd>{ttRate}</dd>
               <dt className="text-emerald-700/60">TT Cost (TT Value × TT Rate)</dt>
               <dd>{fmtLkr(output.ttCostLkr)}</dd>
               <dt className="text-emerald-700/60">Bank LC Charges</dt>
@@ -522,8 +518,6 @@ export default function QuotationPage() {
               <dd>{fmtLkr(Number(importerFee || 0))}</dd>
               <dt className="text-emerald-700/60">Tax Amount</dt>
               <dd>{fmtLkr(Number(taxAmount || 0))}</dd>
-              <dt className="text-emerald-700/60">Customs Rate (reference)</dt>
-              <dd>{customsRate}</dd>
             </dl>
           </Section>
 
@@ -531,6 +525,10 @@ export default function QuotationPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Total Quotation Amount</p>
             <p className="mt-1 text-3xl font-bold text-white">{fmtLkr(output.totalLkr)}</p>
           </div>
+
+          <p className="text-center text-xs text-gray-400">
+            Exchange Rates — LC: {lcRate} · TT: {ttRate} · Customs: {customsRate}
+          </p>
         </div>
       )}
     </div>
