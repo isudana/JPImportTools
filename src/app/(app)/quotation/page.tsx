@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 import { depreciatedFob } from "@/lib/vehiclePricing";
-import { calculateTax, type FuelCategory } from "@/lib/taxRates";
+import { calculateTax, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
 const JPY = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -63,6 +63,15 @@ export default function QuotationPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<Output | null>(null);
+  const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
+
+  const outputRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (output) {
+      outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [output]);
 
   useEffect(() => {
     supabase
@@ -199,6 +208,20 @@ export default function QuotationPage() {
           matchedVehicle.cif_jpy * customsRateNum,
           false,
         ).total
+      : null;
+
+  // Breakdown of the CIF basis actually used to auto-fill Tax Amount (Yellow Book, unless LC Value
+  // exceeds it, in which case LC Value itself) — matches the logic in recomputeDerived.
+  const taxBreakdown: TaxBreakdown | null =
+    matchedVehicle && Number.isFinite(customsRateNum) && customsRateNum > 0
+      ? calculateTax(
+          vehicleFuelCategory(matchedVehicle),
+          matchedVehicle.capacity,
+          Number(lcValue || 0) > matchedVehicle.cif_jpy
+            ? Number(lcValue || 0) * customsRateNum
+            : matchedVehicle.cif_jpy * customsRateNum,
+          false,
+        )
       : null;
 
   return (
@@ -426,7 +449,18 @@ export default function QuotationPage() {
               />
             </label>
             <label className="block">
-              <span className="block text-xs font-medium text-gray-500">Tax Amount</span>
+              <span className="flex items-center justify-between">
+                <span className="block text-xs font-medium text-gray-500">Tax Amount</span>
+                {taxBreakdown && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTaxBreakdown(true)}
+                    className="text-xs font-medium text-emerald-700 hover:underline"
+                  >
+                    View breakdown
+                  </button>
+                )}
+              </span>
               <input
                 value={taxAmount}
                 onChange={(e) => setTaxAmount(e.target.value)}
@@ -460,7 +494,7 @@ export default function QuotationPage() {
       </form>
 
       {output && (
-        <div className="space-y-4 print:space-y-2">
+        <div ref={outputRef} className="space-y-4 print:space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-900">Quotation for {vehicleName}</p>
             <button
@@ -517,7 +551,18 @@ export default function QuotationPage() {
               <dt className="text-emerald-700/60">Importer Fee</dt>
               <dd>{fmtLkr(Number(importerFee || 0))}</dd>
               <dt className="text-emerald-700/60">Tax Amount</dt>
-              <dd>{fmtLkr(Number(taxAmount || 0))}</dd>
+              <dd className="flex items-center gap-2">
+                {fmtLkr(Number(taxAmount || 0))}
+                {taxBreakdown && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTaxBreakdown(true)}
+                    className="text-xs font-medium text-emerald-700 hover:underline print:hidden"
+                  >
+                    View breakdown
+                  </button>
+                )}
+              </dd>
             </dl>
           </Section>
 
@@ -529,6 +574,45 @@ export default function QuotationPage() {
           <p className="text-center text-xs text-gray-400">
             Exchange Rates — LC: {lcRate} · TT: {ttRate} · Customs: {customsRate}
           </p>
+        </div>
+      )}
+
+      {showTaxBreakdown && taxBreakdown && (
+        <div className="fixed inset-0 z-50 flex justify-end print:hidden">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowTaxBreakdown(false)} />
+          <div className="relative h-full w-full max-w-sm overflow-y-auto bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-900">Tax Breakdown</p>
+              <button
+                type="button"
+                onClick={() => setShowTaxBreakdown(false)}
+                className="text-sm text-gray-400 hover:text-gray-700"
+              >
+                Close ✕
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Based on the CIF actually used to auto-fill Tax Amount (Yellow Book CIF, or LC Value if it exceeds it).
+            </p>
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-sm text-gray-700">
+              <dt className="text-gray-400">CID (30%)</dt>
+              <dd>{fmtLkr(taxBreakdown.cid)}</dd>
+              <dt className="text-gray-400">SUR (50% of CID)</dt>
+              <dd>{fmtLkr(taxBreakdown.sur)}</dd>
+              <dt className="text-gray-400">XID (Excise Duty)</dt>
+              <dd>{fmtLkr(taxBreakdown.xid)}</dd>
+              <dt className="text-gray-400">VAT (18%)</dt>
+              <dd>{fmtLkr(taxBreakdown.vat)}</dd>
+              <dt className="text-gray-400">VEL</dt>
+              <dd>{fmtLkr(taxBreakdown.vel)}</dd>
+              <dt className="text-gray-400">LXT (Luxury Tax)</dt>
+              <dd>{fmtLkr(taxBreakdown.lxt)}</dd>
+              <dt className="text-gray-400">SSCL (2.5%)</dt>
+              <dd>{fmtLkr(taxBreakdown.sscl)}</dd>
+              <dt className="font-medium text-gray-900">Total</dt>
+              <dd className="font-medium text-gray-900">{fmtLkr(taxBreakdown.total)}</dd>
+            </dl>
+          </div>
         </div>
       )}
     </div>
