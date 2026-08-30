@@ -202,13 +202,13 @@ export default function QuotationPage() {
       : null;
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
+    <div className="max-w-2xl space-y-6 print:max-w-none">
+      <div className="print:hidden">
         <h1 className="text-lg font-semibold text-gray-900">Quotation Generator</h1>
         <p className="mt-1 text-sm text-gray-500">Build a cost quotation for a vehicle purchase.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
         <Section title="Vehicle Information" color="indigo">
           <label className="block">
             <span className="block text-xs font-medium text-gray-500">Vehicle</span>
@@ -460,8 +460,17 @@ export default function QuotationPage() {
       </form>
 
       {output && (
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-gray-900">Quotation for {vehicleName}</p>
+        <div className="space-y-4 print:space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-900">Quotation for {vehicleName}</p>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 print:hidden"
+            >
+              Download PDF
+            </button>
+          </div>
 
           <Section title="Vehicle Information" color="indigo">
             <dl className="grid grid-cols-2 gap-2 text-sm text-gray-700">
@@ -497,8 +506,12 @@ export default function QuotationPage() {
 
           <Section title="Costs in LKR" color="emerald">
             <dl className="grid grid-cols-2 gap-2 text-sm text-gray-700">
+              <dt className="text-emerald-700/60">LC Rate</dt>
+              <dd>{lcRate}</dd>
               <dt className="text-emerald-700/60">LC Cost (LC Value × LC Rate)</dt>
               <dd>{fmtLkr(output.lcCostLkr)}</dd>
+              <dt className="text-emerald-700/60">TT Rate</dt>
+              <dd>{ttRate}</dd>
               <dt className="text-emerald-700/60">TT Cost (TT Value × TT Rate)</dt>
               <dd>{fmtLkr(output.ttCostLkr)}</dd>
               <dt className="text-emerald-700/60">Bank LC Charges</dt>
