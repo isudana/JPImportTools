@@ -59,6 +59,8 @@ export default function QuotationPage() {
   const [ttRate, setTtRate] = useState("");
   const [customsRate, setCustomsRate] = useState("");
 
+  const [exporterBaseForCalc, setExporterBaseForCalc] = useState<number | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<Output | null>(null);
 
@@ -108,10 +110,16 @@ export default function QuotationPage() {
       const matchFuel: FuelCategory =
         match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
       const newLcValue = String(depreciatedFob(match.website_value_jpy));
+      const exporterBase = match.exporter_base_price_jpy ?? 0;
+      const newExporterShippingHandling = String(
+        Math.round((exporterBase + Number(buyingPrice || 0) / 10) * 100) / 100,
+      );
       setCapacity(String(match.capacity));
       setFuel(matchFuel);
       setLcValue(newLcValue);
-      recomputeTtValue({ lcValue: newLcValue });
+      setExporterBaseForCalc(exporterBase);
+      setExporterShippingHandling(newExporterShippingHandling);
+      recomputeTtValue({ lcValue: newLcValue, exporterShippingHandling: newExporterShippingHandling });
 
       const rate = Number(customsRate);
       if (Number.isFinite(rate) && rate > 0) {
@@ -258,8 +266,17 @@ export default function QuotationPage() {
               <input
                 value={buyingPrice}
                 onChange={(e) => {
-                  setBuyingPrice(e.target.value);
-                  recomputeTtValue({ buyingPrice: e.target.value });
+                  const newBuyingPrice = e.target.value;
+                  setBuyingPrice(newBuyingPrice);
+                  if (exporterBaseForCalc != null) {
+                    const newExporterShippingHandling = String(
+                      Math.round((exporterBaseForCalc + Number(newBuyingPrice || 0) / 10) * 100) / 100,
+                    );
+                    setExporterShippingHandling(newExporterShippingHandling);
+                    recomputeTtValue({ buyingPrice: newBuyingPrice, exporterShippingHandling: newExporterShippingHandling });
+                  } else {
+                    recomputeTtValue({ buyingPrice: newBuyingPrice });
+                  }
                 }}
                 placeholder="e.g. 1200000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -276,6 +293,9 @@ export default function QuotationPage() {
                 placeholder="e.g. 50000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
+              <span className="mt-1 block text-xs text-amber-700/60">
+                Auto-filled as Exporter Base Price + 10% of Buying Price once a vehicle is selected.
+              </span>
             </label>
           </div>
 

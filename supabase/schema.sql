@@ -1830,6 +1830,7 @@ create table vehicle_reference_prices (
   fuel text not null,
   website_value_jpy numeric not null,
   shipping_insurance_jpy numeric not null,
+  exporter_base_price_jpy numeric,
   cif_jpy numeric generated always as (
     round((((website_value_jpy * 100 / 110) * 0.85) + shipping_insurance_jpy)::numeric, 2)
   ) stored,

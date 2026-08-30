@@ -13,6 +13,7 @@ type FormState = {
   fuel: "Petrol" | "Hybrid" | "Series_Hybrid";
   website_value_jpy: string;
   shipping_insurance_jpy: string;
+  exporter_base_price_jpy: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -24,6 +25,7 @@ const EMPTY_FORM: FormState = {
   fuel: "Petrol",
   website_value_jpy: "",
   shipping_insurance_jpy: "",
+  exporter_base_price_jpy: "",
 };
 
 function formatDate(iso: string): string {
@@ -117,6 +119,7 @@ export default function SettingsPage() {
       fuel: form.fuel,
       website_value_jpy: Number(form.website_value_jpy),
       shipping_insurance_jpy: Number(form.shipping_insurance_jpy),
+      exporter_base_price_jpy: form.exporter_base_price_jpy.trim() === "" ? null : Number(form.exporter_base_price_jpy),
     };
   }
 
@@ -127,6 +130,11 @@ export default function SettingsPage() {
       return "Enter a valid website value.";
     if (!Number.isFinite(Number(form.shipping_insurance_jpy)) || Number(form.shipping_insurance_jpy) < 0)
       return "Enter a valid shipping & insurance amount.";
+    if (
+      form.exporter_base_price_jpy.trim() !== "" &&
+      (!Number.isFinite(Number(form.exporter_base_price_jpy)) || Number(form.exporter_base_price_jpy) < 0)
+    )
+      return "Enter a valid exporter base price, or leave it blank.";
     return null;
   }
 
@@ -158,6 +166,7 @@ export default function SettingsPage() {
       fuel: (v.fuel === "Hybrid" || v.fuel === "Series_Hybrid" ? v.fuel : "Petrol") as FormState["fuel"],
       website_value_jpy: String(v.website_value_jpy),
       shipping_insurance_jpy: String(v.shipping_insurance_jpy),
+      exporter_base_price_jpy: v.exporter_base_price_jpy != null ? String(v.exporter_base_price_jpy) : "",
     });
   }
 
@@ -312,6 +321,12 @@ export default function SettingsPage() {
             placeholder="Avg Shipping & Insurance (JPY)"
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
           />
+          <input
+            value={addForm.exporter_base_price_jpy}
+            onChange={(e) => setAddForm({ ...addForm, exporter_base_price_jpy: e.target.value })}
+            placeholder="Exporter Base Price (JPY, optional)"
+            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+          />
         </div>
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-500">
@@ -346,6 +361,7 @@ export default function SettingsPage() {
                   <th className="px-3 py-2">Capacity</th>
                   <th className="px-3 py-2">Website Value</th>
                   <th className="px-3 py-2">Shipping & Ins.</th>
+                  <th className="px-3 py-2">Exporter Base</th>
                   <th className="px-3 py-2">CIF (JPY)</th>
                   <th className="px-3 py-2">Last Modified</th>
                   <th className="px-3 py-2" />
@@ -414,6 +430,14 @@ export default function SettingsPage() {
                           className="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
                         />
                       </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={editForm.exporter_base_price_jpy}
+                          onChange={(e) => setEditForm({ ...editForm, exporter_base_price_jpy: e.target.value })}
+                          placeholder="optional"
+                          className="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+                        />
+                      </td>
                       <td className="px-3 py-2 text-gray-500">
                         {previewCif(editForm.website_value_jpy, editForm.shipping_insurance_jpy)?.toLocaleString() ?? "—"}
                       </td>
@@ -442,6 +466,9 @@ export default function SettingsPage() {
                       <td className="px-3 py-2 text-gray-600">{v.capacity}</td>
                       <td className="px-3 py-2 text-gray-600">{v.website_value_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-600">{v.shipping_insurance_jpy.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-gray-600">
+                        {v.exporter_base_price_jpy != null ? v.exporter_base_price_jpy.toLocaleString() : "—"}
+                      </td>
                       <td className="px-3 py-2 text-gray-600">{v.cif_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-500">{formatDate(v.updated_at)}</td>
                       <td className="whitespace-nowrap px-3 py-2">
@@ -457,7 +484,7 @@ export default function SettingsPage() {
                 )}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="px-3 py-6 text-center text-sm text-gray-500">
                       No vehicles found.
                     </td>
                   </tr>
