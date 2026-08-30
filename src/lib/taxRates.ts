@@ -55,20 +55,20 @@ function xidDetail(fuel: FuelCategory, capacity: number, yomWithinOneYear: boole
   if (fuel === "Series_Hybrid") {
     const band = SERIES_HYBRID_XID_BANDS.find((b) => capacity < b.max)!;
     const rate = yomWithinOneYear ? band.underOneYear : band.overOneYear;
-    return { base: capacity, rateLabel: `JPY ${rate.toLocaleString()} / kW`, amount: rate * capacity };
+    return { base: capacity, rateLabel: `Rs. ${rate.toLocaleString()} / kW`, amount: rate * capacity };
   }
   if (fuel === "Hybrid") {
     if (capacity < 1000) return { base: null, rateLabel: "Flat", amount: HYBRID_UNDER_1000_FLAT };
     const band = HYBRID_XID_BANDS.find((b) => capacity < b.max)!;
-    return { base: capacity, rateLabel: `JPY ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
+    return { base: capacity, rateLabel: `Rs. ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
   }
   if (capacity < 1000) {
     const perCc = capacity * PETROL_XID_BANDS[0].ratePerCc;
     if (perCc < PETROL_UNDER_1000_FLOOR) return { base: null, rateLabel: "Flat (floor)", amount: PETROL_UNDER_1000_FLOOR };
-    return { base: capacity, rateLabel: `JPY ${PETROL_XID_BANDS[0].ratePerCc.toLocaleString()} / cc`, amount: perCc };
+    return { base: capacity, rateLabel: `Rs. ${PETROL_XID_BANDS[0].ratePerCc.toLocaleString()} / cc`, amount: perCc };
   }
   const band = PETROL_XID_BANDS.find((b) => capacity < b.max)!;
-  return { base: capacity, rateLabel: `JPY ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
+  return { base: capacity, rateLabel: `Rs. ${band.ratePerCc.toLocaleString()} / cc`, amount: band.ratePerCc * capacity };
 }
 
 export function calculateXid(fuel: FuelCategory, capacity: number, yomWithinOneYear: boolean): number {
