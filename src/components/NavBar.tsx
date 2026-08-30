@@ -25,7 +25,7 @@ export default function NavBar() {
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="text-sm font-semibold text-gray-900">ImportDrive</span>
+          <span className="text-sm font-semibold text-gray-900">JP ImportTools</span>
           <nav className="flex gap-4">
             {LINKS.map((link) => (
               <Link
