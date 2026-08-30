@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-type BadgeColor = "sky" | "amber" | "emerald" | "indigo";
+type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep";
 
 const BADGE_STYLES: Record<BadgeColor, string> = {
-  sky: "bg-sky-100 text-sky-700",
-  amber: "bg-amber-100 text-amber-700",
-  emerald: "bg-emerald-100 text-emerald-700",
-  indigo: "bg-indigo-100 text-indigo-700",
+  red: "bg-red-50 text-red-700",
+  rose: "bg-rose-100 text-rose-700",
+  redDeep: "bg-red-100 text-red-800",
+  roseDeep: "bg-rose-50 text-rose-800",
 };
 
 const UTILITIES: { href: string; title: string; description: string; icon: string; color: BadgeColor }[] = [
@@ -15,35 +15,35 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     title: "Grade Search",
     description: "Look up a vehicle's grade/trim from its chassis number on the manufacturer's own site.",
     icon: "🏷️",
-    color: "sky",
+    color: "red",
   },
   {
     href: "/yom-lookup",
     title: "YOM Lookup",
     description: "Look up a vehicle's manufacture year from its chassis code and serial number.",
     icon: "📅",
-    color: "amber",
+    color: "rose",
   },
   {
     href: "/tax-calculator",
     title: "Vehicle Tax Calculator",
     description: "Estimate Sri Lanka Customs duty (CID, SUR, XID, VAT, VEL, LXT, SSCL) for an import.",
     icon: "🧮",
-    color: "emerald",
+    color: "redDeep",
   },
   {
     href: "/quotation",
     title: "Quotation Generator",
     description: "Build a cost quotation for a vehicle purchase from buying price, shipping, and fees.",
     icon: "🧾",
-    color: "indigo",
+    color: "roseDeep",
   },
 ];
 
 export default function HomePage() {
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-l-4 border-red-700 pl-3">
         <h1 className="text-lg font-semibold text-gray-900">Utilities</h1>
         <p className="mt-1 text-sm text-gray-500">Tools for checking vehicle details before import.</p>
       </div>
@@ -53,7 +53,7 @@ export default function HomePage() {
           <Link
             key={u.href}
             href={u.href}
-            className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-400"
+            className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 hover:border-red-400"
           >
             <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg text-xl ${BADGE_STYLES[u.color]}`}>
               {u.icon}

@@ -220,7 +220,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-l-4 border-red-700 pl-3">
         <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
         <p className="mt-1 text-sm text-gray-500">Manage the vehicle reference prices used by the Tax Calculator.</p>
       </div>
@@ -260,7 +260,7 @@ export default function SettingsPage() {
           {ratesMessage && <p className="text-xs text-gray-500">{ratesMessage}</p>}
           <button
             type="submit"
-            className="ml-auto rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            className="ml-auto rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
           >
             Save Rates
           </button>
@@ -334,7 +334,7 @@ export default function SettingsPage() {
           </p>
           <button
             type="submit"
-            className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
           >
             Add Vehicle
           </button>

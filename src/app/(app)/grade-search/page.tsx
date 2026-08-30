@@ -10,7 +10,7 @@ const GRADE_SEARCH_SITES: { make: string; url: string }[] = [
 export default function GradeSearchPage() {
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
+      <div className="border-l-4 border-red-700 pl-3">
         <h1 className="text-lg font-semibold text-gray-900">Grade Search</h1>
         <p className="mt-1 text-sm text-gray-500">
           Official manufacturer portals for checking a vehicle&apos;s grade/trim from its chassis
@@ -25,7 +25,7 @@ export default function GradeSearchPage() {
             href={site.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-400"
+            className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-red-400"
           >
             <span className="font-medium text-gray-900">{site.make}</span>
             <span className="text-sm text-gray-400">Open ↗</span>
