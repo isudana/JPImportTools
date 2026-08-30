@@ -85,15 +85,33 @@ export default function QuotationPage() {
       });
   }, [supabase]);
 
+  function recomputeTtValue(
+    overrides: Partial<{
+      buyingPrice: string;
+      exporterShippingHandling: string;
+      importerShippingHandling: string;
+      lcValue: string;
+    }>,
+  ) {
+    const totalCostJapan =
+      Number((overrides.buyingPrice ?? buyingPrice) || 0) +
+      Number((overrides.exporterShippingHandling ?? exporterShippingHandling) || 0) +
+      Number((overrides.importerShippingHandling ?? importerShippingHandling) || 0);
+    const lc = Number((overrides.lcValue ?? lcValue) || 0);
+    setTtValue(String(Math.round((totalCostJapan - lc) * 100) / 100));
+  }
+
   function handleVehicleNameChange(value: string) {
     setVehicleName(value);
     const match = vehicles.find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
     if (match) {
       const matchFuel: FuelCategory =
         match.fuel === "Hybrid" ? "Hybrid" : match.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
+      const newLcValue = String(depreciatedFob(match.website_value_jpy));
       setCapacity(String(match.capacity));
       setFuel(matchFuel);
-      setLcValue(String(depreciatedFob(match.website_value_jpy)));
+      setLcValue(newLcValue);
+      recomputeTtValue({ lcValue: newLcValue });
 
       const rate = Number(customsRate);
       if (Number.isFinite(rate) && rate > 0) {
@@ -239,7 +257,10 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">Buying Price</span>
               <input
                 value={buyingPrice}
-                onChange={(e) => setBuyingPrice(e.target.value)}
+                onChange={(e) => {
+                  setBuyingPrice(e.target.value);
+                  recomputeTtValue({ buyingPrice: e.target.value });
+                }}
                 placeholder="e.g. 1200000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
@@ -248,7 +269,10 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">Exporter Shipping &amp; Handling</span>
               <input
                 value={exporterShippingHandling}
-                onChange={(e) => setExporterShippingHandling(e.target.value)}
+                onChange={(e) => {
+                  setExporterShippingHandling(e.target.value);
+                  recomputeTtValue({ exporterShippingHandling: e.target.value });
+                }}
                 placeholder="e.g. 50000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
@@ -260,7 +284,10 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">Importer Shipping &amp; Handling</span>
               <input
                 value={importerShippingHandling}
-                onChange={(e) => setImporterShippingHandling(e.target.value)}
+                onChange={(e) => {
+                  setImporterShippingHandling(e.target.value);
+                  recomputeTtValue({ importerShippingHandling: e.target.value });
+                }}
                 placeholder="e.g. 60000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
@@ -269,7 +296,10 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">LC Value</span>
               <input
                 value={lcValue}
-                onChange={(e) => setLcValue(e.target.value)}
+                onChange={(e) => {
+                  setLcValue(e.target.value);
+                  recomputeTtValue({ lcValue: e.target.value });
+                }}
                 placeholder="e.g. 1500000"
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
@@ -284,6 +314,9 @@ export default function QuotationPage() {
               placeholder="e.g. 0"
               className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
             />
+            <span className="mt-1 block text-xs text-amber-700/60">
+              Auto-filled as Total Cost in Japan − LC Value — editable.
+            </span>
           </label>
         </Section>
 
