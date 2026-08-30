@@ -16,6 +16,11 @@ const UTILITIES = [
     title: "Vehicle Tax Calculator",
     description: "Estimate Sri Lanka Customs duty (CID, SUR, XID, VAT, VEL, LXT, SSCL) for an import.",
   },
+  {
+    href: "/quotation",
+    title: "Quotation Generator",
+    description: "Build a cost quotation for a vehicle purchase from buying price, shipping, and fees.",
+  },
 ];
 
 export default function HomePage() {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { VehicleReferencePrice } from "@/lib/types";
+import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 
 type FormState = {
   name: string;
@@ -13,6 +13,7 @@ type FormState = {
   fuel: "Petrol" | "Hybrid" | "Series_Hybrid";
   website_value_jpy: string;
   shipping_insurance_jpy: string;
+  exporter_base_price_jpy: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -24,6 +25,7 @@ const EMPTY_FORM: FormState = {
   fuel: "Petrol",
   website_value_jpy: "",
   shipping_insurance_jpy: "",
+  exporter_base_price_jpy: "",
 };
 
 function formatDate(iso: string): string {
@@ -47,6 +49,9 @@ export default function SettingsPage() {
   const [addForm, setAddForm] = useState<FormState>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+
+  const [ratesForm, setRatesForm] = useState({ lc: "", tt: "", customs: "" });
+  const [ratesMessage, setRatesMessage] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -78,6 +83,24 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    supabase
+      .from("app_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const settings = data as AppSettings | null;
+        if (!settings) return;
+        setRatesForm({
+          lc: String(settings.default_lc_rate),
+          tt: String(settings.default_tt_rate),
+          customs: String(settings.default_customs_rate),
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return vehicles;
@@ -96,6 +119,7 @@ export default function SettingsPage() {
       fuel: form.fuel,
       website_value_jpy: Number(form.website_value_jpy),
       shipping_insurance_jpy: Number(form.shipping_insurance_jpy),
+      exporter_base_price_jpy: form.exporter_base_price_jpy.trim() === "" ? null : Number(form.exporter_base_price_jpy),
     };
   }
 
@@ -106,6 +130,11 @@ export default function SettingsPage() {
       return "Enter a valid website value.";
     if (!Number.isFinite(Number(form.shipping_insurance_jpy)) || Number(form.shipping_insurance_jpy) < 0)
       return "Enter a valid shipping & insurance amount.";
+    if (
+      form.exporter_base_price_jpy.trim() !== "" &&
+      (!Number.isFinite(Number(form.exporter_base_price_jpy)) || Number(form.exporter_base_price_jpy) < 0)
+    )
+      return "Enter a valid exporter base price, or leave it blank.";
     return null;
   }
 
@@ -137,6 +166,7 @@ export default function SettingsPage() {
       fuel: (v.fuel === "Hybrid" || v.fuel === "Series_Hybrid" ? v.fuel : "Petrol") as FormState["fuel"],
       website_value_jpy: String(v.website_value_jpy),
       shipping_insurance_jpy: String(v.shipping_insurance_jpy),
+      exporter_base_price_jpy: v.exporter_base_price_jpy != null ? String(v.exporter_base_price_jpy) : "",
     });
   }
 
@@ -169,6 +199,23 @@ export default function SettingsPage() {
     refresh();
   }
 
+  async function handleSaveRates(e: React.FormEvent) {
+    e.preventDefault();
+    setRatesMessage(null);
+    const lc = Number(ratesForm.lc);
+    const tt = Number(ratesForm.tt);
+    const customs = Number(ratesForm.customs);
+    if (![lc, tt, customs].every((n) => Number.isFinite(n) && n > 0)) {
+      setRatesMessage("Enter valid rates for LC, TT, and Customs.");
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("app_settings")
+      .update({ default_lc_rate: lc, default_tt_rate: tt, default_customs_rate: customs })
+      .eq("id", 1);
+    setRatesMessage(updateError ? updateError.message : "Saved.");
+  }
+
   const addCif = previewCif(addForm.website_value_jpy, addForm.shipping_insurance_jpy);
 
   return (
@@ -179,6 +226,46 @@ export default function SettingsPage() {
       </div>
 
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
+      <form onSubmit={handleSaveRates} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+        <p className="text-sm font-medium text-gray-900">Default Exchange Rates</p>
+        <p className="text-xs text-gray-500">Used to prefill the Quotation Generator&apos;s rate fields.</p>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">LC JPY to LKR Rate</span>
+            <input
+              value={ratesForm.lc}
+              onChange={(e) => setRatesForm({ ...ratesForm, lc: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">TT JPY to LKR Rate</span>
+            <input
+              value={ratesForm.tt}
+              onChange={(e) => setRatesForm({ ...ratesForm, tt: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
+            <input
+              value={ratesForm.customs}
+              onChange={(e) => setRatesForm({ ...ratesForm, customs: e.target.value })}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-between">
+          {ratesMessage && <p className="text-xs text-gray-500">{ratesMessage}</p>}
+          <button
+            type="submit"
+            className="ml-auto rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          >
+            Save Rates
+          </button>
+        </div>
+      </form>
 
       <form onSubmit={handleAdd} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
         <p className="text-sm font-medium text-gray-900">Add Vehicle</p>
@@ -234,6 +321,12 @@ export default function SettingsPage() {
             placeholder="Avg Shipping & Insurance (JPY)"
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
           />
+          <input
+            value={addForm.exporter_base_price_jpy}
+            onChange={(e) => setAddForm({ ...addForm, exporter_base_price_jpy: e.target.value })}
+            placeholder="Exporter Base Price (JPY, optional)"
+            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+          />
         </div>
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-500">
@@ -268,6 +361,7 @@ export default function SettingsPage() {
                   <th className="px-3 py-2">Capacity</th>
                   <th className="px-3 py-2">Website Value</th>
                   <th className="px-3 py-2">Shipping & Ins.</th>
+                  <th className="px-3 py-2">Exporter Base</th>
                   <th className="px-3 py-2">CIF (JPY)</th>
                   <th className="px-3 py-2">Last Modified</th>
                   <th className="px-3 py-2" />
@@ -336,6 +430,14 @@ export default function SettingsPage() {
                           className="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
                         />
                       </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={editForm.exporter_base_price_jpy}
+                          onChange={(e) => setEditForm({ ...editForm, exporter_base_price_jpy: e.target.value })}
+                          placeholder="optional"
+                          className="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+                        />
+                      </td>
                       <td className="px-3 py-2 text-gray-500">
                         {previewCif(editForm.website_value_jpy, editForm.shipping_insurance_jpy)?.toLocaleString() ?? "—"}
                       </td>
@@ -364,6 +466,9 @@ export default function SettingsPage() {
                       <td className="px-3 py-2 text-gray-600">{v.capacity}</td>
                       <td className="px-3 py-2 text-gray-600">{v.website_value_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-600">{v.shipping_insurance_jpy.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-gray-600">
+                        {v.exporter_base_price_jpy != null ? v.exporter_base_price_jpy.toLocaleString() : "—"}
+                      </td>
                       <td className="px-3 py-2 text-gray-600">{v.cif_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-500">{formatDate(v.updated_at)}</td>
                       <td className="whitespace-nowrap px-3 py-2">
@@ -379,7 +484,7 @@ export default function SettingsPage() {
                 )}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="px-3 py-6 text-center text-sm text-gray-500">
                       No vehicles found.
                     </td>
                   </tr>

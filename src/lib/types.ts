@@ -18,6 +18,15 @@ export type VehicleReferencePrice = {
   fuel: string;
   website_value_jpy: number;
   shipping_insurance_jpy: number;
+  exporter_base_price_jpy: number | null;
   cif_jpy: number;
+  updated_at: string;
+};
+
+export type AppSettings = {
+  id: number;
+  default_lc_rate: number;
+  default_tt_rate: number;
+  default_customs_rate: number;
   updated_at: string;
 };

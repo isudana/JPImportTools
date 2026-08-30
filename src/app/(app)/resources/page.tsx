@@ -19,6 +19,11 @@ const RESOURCES: { title: string; url: string; description: string }[] = [
     url: "https://www.customs.gov.lk/exchange-rates/",
     description: "Official customs exchange rates for duty calculation",
   },
+  {
+    title: "Vehicle History Check",
+    url: "https://japanstat.com/en",
+    description: "Japan vehicle history and export certificate lookup",
+  },
 ];
 
 export default function ResourcesPage() {
