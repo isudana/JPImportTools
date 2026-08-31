@@ -1835,6 +1835,15 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
+-- Backfill: the trigger below only fires for auth.users rows inserted from now on, so any
+-- account created before this migration ran (e.g. the account you're reading this with) has
+-- no profile yet. Give every such account a profile, promoted to ADMIN — safe to re-run, since
+-- it only inserts for users that don't already have one.
+insert into public.profiles (id, email, display_name, role)
+select u.id, u.email, coalesce(u.raw_user_meta_data ->> 'display_name', u.email), 'ADMIN'::user_role_t
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id);
+
 -- The first account ever created becomes ADMIN automatically (e.g. the first user added via
 -- the Supabase dashboard), so nobody is locked out of Settings/user management on a fresh
 -- project. Every account after that defaults to USER unless an admin requests otherwise via
