@@ -1827,6 +1827,13 @@ do $$ begin
   end if;
 end $$;
 
+-- If the type already existed (e.g. from an earlier partial run of this script) it's never
+-- recreated by the guard above, so make sure both labels are present regardless — otherwise a
+-- stale type missing 'USER' surfaces as "invalid input value for enum user_role_t" the first
+-- time anything tries to use it.
+alter type user_role_t add value if not exists 'ADMIN';
+alter type user_role_t add value if not exists 'USER';
+
 create table if not exists profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
