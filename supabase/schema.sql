@@ -1817,6 +1817,79 @@ alter table chassis_year_ranges enable row level security;
 create policy "read chassis_year_ranges" on chassis_year_ranges for select using (auth.role() = 'authenticated');
 
 
+-- ============ Users & roles ============
+-- Guarded (create table if not exists / drop trigger if exists) and never dropped by this
+-- script, so re-running schema.sql never wipes out user accounts or role assignments.
+
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'user_role_t') then
+    create type user_role_t as enum ('ADMIN', 'USER');
+  end if;
+end $$;
+
+create table if not exists profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  email text,
+  display_name text,
+  role user_role_t not null default 'USER',
+  created_at timestamptz not null default now()
+);
+
+-- The first account ever created becomes ADMIN automatically (e.g. the first user added via
+-- the Supabase dashboard), so nobody is locked out of Settings/user management on a fresh
+-- project. Every account after that defaults to USER unless an admin requests otherwise via
+-- the /api/users route (which sets raw_user_meta_data.role and is itself admin-gated).
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, display_name, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'display_name', new.email),
+    case
+      when not exists (select 1 from public.profiles) then 'ADMIN'::public.user_role_t
+      else coalesce((new.raw_user_meta_data ->> 'role')::public.user_role_t, 'USER'::public.user_role_t)
+    end
+  );
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+create or replace function public.current_user_role()
+returns user_role_t
+language sql
+stable
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.enforce_profile_role_change()
+returns trigger as $$
+begin
+  if new.role is distinct from old.role and public.current_user_role() <> 'ADMIN' then
+    raise exception 'Only admins can change user roles';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_profile_role_change on profiles;
+create trigger on_profile_role_change
+  before update on profiles
+  for each row execute procedure public.enforce_profile_role_change();
+
+alter table profiles enable row level security;
+drop policy if exists "authenticated read profiles" on profiles;
+drop policy if exists "admin update any profile" on profiles;
+create policy "authenticated read profiles" on profiles for select using (auth.role() = 'authenticated');
+create policy "admin update any profile" on profiles for update using (public.current_user_role() = 'ADMIN');
+
 drop table if exists vehicle_reference_prices cascade;
 
 -- CIF (JPY) = (website value with taxes converted to ex-tax FOB) * 0.85 depreciation + shipping & insurance
@@ -1977,9 +2050,9 @@ insert into vehicle_reference_prices (name, model_code, display_name, grade, cap
 
 alter table vehicle_reference_prices enable row level security;
 create policy "read vehicle_reference_prices" on vehicle_reference_prices for select using (auth.role() = 'authenticated');
-create policy "insert vehicle_reference_prices" on vehicle_reference_prices for insert with check (auth.role() = 'authenticated');
-create policy "update vehicle_reference_prices" on vehicle_reference_prices for update using (auth.role() = 'authenticated');
-create policy "delete vehicle_reference_prices" on vehicle_reference_prices for delete using (auth.role() = 'authenticated');
+create policy "insert vehicle_reference_prices" on vehicle_reference_prices for insert with check (public.current_user_role() = 'ADMIN');
+create policy "update vehicle_reference_prices" on vehicle_reference_prices for update using (public.current_user_role() = 'ADMIN');
+create policy "delete vehicle_reference_prices" on vehicle_reference_prices for delete using (public.current_user_role() = 'ADMIN');
 
 drop table if exists app_settings cascade;
 
@@ -1999,4 +2072,5 @@ for each row execute function set_updated_at();
 
 alter table app_settings enable row level security;
 create policy "read app_settings" on app_settings for select using (auth.role() = 'authenticated');
-create policy "update app_settings" on app_settings for update using (auth.role() = 'authenticated');
+create policy "update app_settings" on app_settings for update using (public.current_user_role() = 'ADMIN');
+

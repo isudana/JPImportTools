@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
+import { useRole } from "@/components/RoleProvider";
+import AddUserForm from "@/components/AddUserForm";
+import UserRoleSelect from "@/components/UserRoleSelect";
+import DeleteUserButton from "@/components/DeleteUserButton";
+import type { AppSettings, Profile, VehicleReferencePrice } from "@/lib/types";
 
 type FormState = {
   name: string;
@@ -41,6 +45,9 @@ function previewCif(websiteValue: string, shippingInsurance: string): number | n
 
 export default function SettingsPage() {
   const supabase = createClient();
+  const role = useRole();
+  const isAdmin = role === "ADMIN";
+
   const [vehicles, setVehicles] = useState<VehicleReferencePrice[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -52,6 +59,8 @@ export default function SettingsPage() {
 
   const [ratesForm, setRatesForm] = useState({ lc: "", tt: "", customs: "" });
   const [ratesMessage, setRatesMessage] = useState<string | null>(null);
+
+  const [users, setUsers] = useState<Profile[]>([]);
 
   async function refresh() {
     setLoading(true);
@@ -65,6 +74,11 @@ export default function SettingsPage() {
       return;
     }
     setVehicles((data ?? []) as VehicleReferencePrice[]);
+  }
+
+  async function refreshUsers() {
+    const { data } = await supabase.from("profiles").select("*").order("created_at");
+    setUsers((data ?? []) as Profile[]);
   }
 
   useEffect(() => {
@@ -100,6 +114,16 @@ export default function SettingsPage() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (role !== "ADMIN") return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at")
+      .then(({ data }) => setUsers((data ?? []) as Profile[]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -222,124 +246,144 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div className="border-l-4 border-red-700 pl-3">
         <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
-        <p className="mt-1 text-sm text-gray-500">Manage the vehicle reference prices used by the Tax Calculator.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          {isAdmin
+            ? "Manage the vehicle reference prices used by the Tax Calculator."
+            : "Read-only — ask an admin to make changes here."}
+        </p>
       </div>
 
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      <form onSubmit={handleSaveRates} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm font-medium text-gray-900">Default Exchange Rates</p>
-        <p className="text-xs text-gray-500">Used to prefill the Quotation Generator&apos;s rate fields.</p>
-        <div className="grid grid-cols-3 gap-3">
-          <label className="block">
-            <span className="block text-xs font-medium text-gray-500">LC JPY to LKR Rate</span>
-            <input
-              value={ratesForm.lc}
-              onChange={(e) => setRatesForm({ ...ratesForm, lc: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-medium text-gray-500">TT JPY to LKR Rate</span>
-            <input
-              value={ratesForm.tt}
-              onChange={(e) => setRatesForm({ ...ratesForm, tt: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
-            <input
-              value={ratesForm.customs}
-              onChange={(e) => setRatesForm({ ...ratesForm, customs: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-            />
-          </label>
+      {isAdmin ? (
+        <form onSubmit={handleSaveRates} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Default Exchange Rates</p>
+          <p className="text-xs text-gray-500">Used to prefill the Quotation Generator&apos;s rate fields.</p>
+          <div className="grid grid-cols-3 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">LC JPY to LKR Rate</span>
+              <input
+                value={ratesForm.lc}
+                onChange={(e) => setRatesForm({ ...ratesForm, lc: e.target.value })}
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">TT JPY to LKR Rate</span>
+              <input
+                value={ratesForm.tt}
+                onChange={(e) => setRatesForm({ ...ratesForm, tt: e.target.value })}
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
+              <input
+                value={ratesForm.customs}
+                onChange={(e) => setRatesForm({ ...ratesForm, customs: e.target.value })}
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-between">
+            {ratesMessage && <p className="text-xs text-gray-500">{ratesMessage}</p>}
+            <button
+              type="submit"
+              className="ml-auto rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
+            >
+              Save Rates
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Default Exchange Rates</p>
+          <dl className="mt-3 grid grid-cols-3 gap-2 text-sm text-gray-600">
+            <dt className="text-gray-400">LC JPY to LKR Rate</dt>
+            <dd>{ratesForm.lc || "—"}</dd>
+            <dt className="text-gray-400">TT JPY to LKR Rate</dt>
+            <dd>{ratesForm.tt || "—"}</dd>
+            <dt className="text-gray-400">Customs JPY to LKR Rate</dt>
+            <dd>{ratesForm.customs || "—"}</dd>
+          </dl>
         </div>
-        <div className="flex items-center justify-between">
-          {ratesMessage && <p className="text-xs text-gray-500">{ratesMessage}</p>}
-          <button
-            type="submit"
-            className="ml-auto rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
-          >
-            Save Rates
-          </button>
-        </div>
-      </form>
+      )}
 
-      <form onSubmit={handleAdd} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm font-medium text-gray-900">Add Vehicle</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <input
-            value={addForm.name}
-            onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-            placeholder="Name"
-            className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 sm:col-span-4"
-          />
-          <input
-            value={addForm.model_code}
-            onChange={(e) => setAddForm({ ...addForm, model_code: e.target.value })}
-            placeholder="Model Code"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <input
-            value={addForm.display_name}
-            onChange={(e) => setAddForm({ ...addForm, display_name: e.target.value })}
-            placeholder="Display Name"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <input
-            value={addForm.grade}
-            onChange={(e) => setAddForm({ ...addForm, grade: e.target.value })}
-            placeholder="Grade"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <select
-            value={addForm.fuel}
-            onChange={(e) => setAddForm({ ...addForm, fuel: e.target.value as FormState["fuel"] })}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          >
-            <option value="Petrol">Petrol</option>
-            <option value="Hybrid">Hybrid</option>
-            <option value="Series_Hybrid">Series Hybrid</option>
-          </select>
-          <input
-            value={addForm.capacity}
-            onChange={(e) => setAddForm({ ...addForm, capacity: e.target.value })}
-            placeholder={addForm.fuel === "Series_Hybrid" ? "Motor Power (kW)" : "Capacity (cc)"}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <input
-            value={addForm.website_value_jpy}
-            onChange={(e) => setAddForm({ ...addForm, website_value_jpy: e.target.value })}
-            placeholder="Website Value (JPY, with taxes)"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <input
-            value={addForm.shipping_insurance_jpy}
-            onChange={(e) => setAddForm({ ...addForm, shipping_insurance_jpy: e.target.value })}
-            placeholder="Avg Shipping & Insurance (JPY)"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-          <input
-            value={addForm.exporter_base_price_jpy}
-            onChange={(e) => setAddForm({ ...addForm, exporter_base_price_jpy: e.target.value })}
-            placeholder="Exporter Base Price (JPY, optional)"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            {addCif != null ? `Computed CIF: JPY ${addCif.toLocaleString()}` : "Enter website value and shipping & insurance to preview CIF"}
-          </p>
-          <button
-            type="submit"
-            className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
-          >
-            Add Vehicle
-          </button>
-        </div>
-      </form>
+      {isAdmin && (
+        <form onSubmit={handleAdd} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Add Vehicle</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <input
+              value={addForm.name}
+              onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+              placeholder="Name"
+              className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 sm:col-span-4"
+            />
+            <input
+              value={addForm.model_code}
+              onChange={(e) => setAddForm({ ...addForm, model_code: e.target.value })}
+              placeholder="Model Code"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <input
+              value={addForm.display_name}
+              onChange={(e) => setAddForm({ ...addForm, display_name: e.target.value })}
+              placeholder="Display Name"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <input
+              value={addForm.grade}
+              onChange={(e) => setAddForm({ ...addForm, grade: e.target.value })}
+              placeholder="Grade"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <select
+              value={addForm.fuel}
+              onChange={(e) => setAddForm({ ...addForm, fuel: e.target.value as FormState["fuel"] })}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            >
+              <option value="Petrol">Petrol</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Series_Hybrid">Series Hybrid</option>
+            </select>
+            <input
+              value={addForm.capacity}
+              onChange={(e) => setAddForm({ ...addForm, capacity: e.target.value })}
+              placeholder={addForm.fuel === "Series_Hybrid" ? "Motor Power (kW)" : "Capacity (cc)"}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <input
+              value={addForm.website_value_jpy}
+              onChange={(e) => setAddForm({ ...addForm, website_value_jpy: e.target.value })}
+              placeholder="Website Value (JPY, with taxes)"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <input
+              value={addForm.shipping_insurance_jpy}
+              onChange={(e) => setAddForm({ ...addForm, shipping_insurance_jpy: e.target.value })}
+              placeholder="Avg Shipping & Insurance (JPY)"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+            <input
+              value={addForm.exporter_base_price_jpy}
+              onChange={(e) => setAddForm({ ...addForm, exporter_base_price_jpy: e.target.value })}
+              placeholder="Exporter Base Price (JPY, optional)"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              {addCif != null ? `Computed CIF: JPY ${addCif.toLocaleString()}` : "Enter website value and shipping & insurance to preview CIF"}
+            </p>
+            <button
+              type="submit"
+              className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
+            >
+              Add Vehicle
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="space-y-3">
         <input
@@ -364,12 +408,12 @@ export default function SettingsPage() {
                   <th className="px-3 py-2">Exporter Base</th>
                   <th className="px-3 py-2">CIF (JPY)</th>
                   <th className="px-3 py-2">Last Modified</th>
-                  <th className="px-3 py-2" />
+                  {isAdmin && <th className="px-3 py-2" />}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((v) =>
-                  editingId === v.id ? (
+                  isAdmin && editingId === v.id ? (
                     <tr key={v.id} className="border-b border-gray-100 align-top">
                       <td className="px-3 py-2">
                         <input
@@ -471,20 +515,22 @@ export default function SettingsPage() {
                       </td>
                       <td className="px-3 py-2 text-gray-600">{v.cif_jpy.toLocaleString()}</td>
                       <td className="px-3 py-2 text-gray-500">{formatDate(v.updated_at)}</td>
-                      <td className="whitespace-nowrap px-3 py-2">
-                        <button onClick={() => startEdit(v)} className="mr-2 text-xs font-medium text-gray-900 hover:underline">
-                          Edit
-                        </button>
-                        <button onClick={() => handleDelete(v.id, v.name)} className="text-xs text-red-600 hover:underline">
-                          Delete
-                        </button>
-                      </td>
+                      {isAdmin && (
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <button onClick={() => startEdit(v)} className="mr-2 text-xs font-medium text-gray-900 hover:underline">
+                            Edit
+                          </button>
+                          <button onClick={() => handleDelete(v.id, v.name)} className="text-xs text-red-600 hover:underline">
+                            Delete
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ),
                 )}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={isAdmin ? 9 : 8} className="px-3 py-6 text-center text-sm text-gray-500">
                       No vehicles found.
                     </td>
                   </tr>
@@ -494,6 +540,57 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Users</h2>
+            <p className="mt-1 text-xs text-gray-500">Admins can change settings; other users get read-only access.</p>
+          </div>
+
+          <AddUserForm onSuccess={refreshUsers} />
+
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="min-w-full text-sm">
+              <thead className="border-b border-gray-200 text-left text-xs text-gray-400">
+                <tr>
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Joined</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b border-gray-100">
+                    <td className="px-3 py-2 font-medium text-gray-900">{u.display_name || "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{u.email || "—"}</td>
+                    <td className="px-3 py-2">
+                      <UserRoleSelect userId={u.id} role={u.role} />
+                    </td>
+                    <td className="px-3 py-2 text-gray-500">{formatDate(u.created_at)}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <DeleteUserButton
+                        userId={u.id}
+                        what={`user "${u.display_name || u.email}"`}
+                        onSuccess={refreshUsers}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-sm text-gray-500">
+                      No users found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

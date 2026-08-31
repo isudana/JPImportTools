@@ -30,3 +30,18 @@ export type AppSettings = {
   default_customs_rate: number;
   updated_at: string;
 };
+
+export type UserRole = "ADMIN" | "USER";
+
+export const USER_ROLE_LABEL: Record<UserRole, string> = {
+  ADMIN: "Admin",
+  USER: "Read-only",
+};
+
+export type Profile = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  role: UserRole;
+  created_at: string;
+};
