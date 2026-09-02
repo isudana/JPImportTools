@@ -5,11 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { evaluateYom, type YomResult } from "@/lib/yom";
 import type { ChassisYearRange } from "@/lib/types";
 
+type Annotation = { xMin: number; yMin: number; xMax: number; yMax: number; translation: string };
+
 type AnalyzeResult = {
   explanation: string;
   chassisCode: string | null;
   serialNumber: number | null;
   yom: YomResult | null;
+  annotations: Annotation[];
 };
 
 const MAX_DIMENSION = 1600;
@@ -54,6 +57,7 @@ export default function AuctionSheetAnalyzerPage() {
   const [yomResult, setYomResult] = useState<YomResult | null>(null);
   const [yomError, setYomError] = useState<string | null>(null);
   const [yomChecking, setYomChecking] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -177,6 +181,43 @@ export default function AuctionSheetAnalyzerPage() {
 
       {result && (
         <>
+          {previewUrl && result.annotations.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900">Translated Auction Sheet</h2>
+                <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={showOverlay}
+                    onChange={(e) => setShowOverlay(e.target.checked)}
+                  />
+                  Show translations
+                </label>
+              </div>
+              <div className="relative inline-block w-full overflow-hidden rounded-md border border-gray-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Auction sheet with translations" className="block w-full" />
+                {showOverlay &&
+                  result.annotations.map((a, i) => (
+                    <div
+                      key={i}
+                      className="absolute border border-red-600/70 bg-red-600/10"
+                      style={{
+                        left: `${a.xMin / 10}%`,
+                        top: `${a.yMin / 10}%`,
+                        width: `${(a.xMax - a.xMin) / 10}%`,
+                        height: `${(a.yMax - a.yMin) / 10}%`,
+                      }}
+                    >
+                      <span className="absolute -top-4 left-0 z-10 whitespace-nowrap rounded bg-red-700 px-1 py-0.5 text-[10px] leading-tight font-medium text-white">
+                        {a.translation}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
             <p className="text-xs font-medium text-gray-500">
               Chassis code and serial number extracted from the photo — edit if not recognized or
