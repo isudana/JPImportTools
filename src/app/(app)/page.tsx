@@ -38,6 +38,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     icon: "🧾",
     color: "roseDeep",
   },
+  {
+    href: "/auction-sheet-analyzer",
+    title: "Auction Sheet Analyzer",
+    description: "Upload an auction sheet photo to get a detailed English explanation of grade, equipment, and condition.",
+    icon: "📋",
+    color: "red",
+  },
 ];
 
 export default function HomePage() {
