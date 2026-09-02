@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { evaluateYom, type YomResult } from "@/lib/yom";
 import type { ChassisYearRange } from "@/lib/types";
 
+export const maxDuration = 60;
+
 const PROMPT = `You are an expert Japanese used-vehicle auction inspector, helping a Sri Lankan car importer understand an auction sheet (e.g. from USS, TAA, JAA, or similar auction houses) before they bid.
 
 Read the attached auction sheet image, then write a detailed explanation in plain English covering:
@@ -22,7 +24,7 @@ Also separately extract, exactly as printed on the sheet:
 - The chassis serial number (the digits after the chassis code, e.g. "2040000") — leave empty if not legible.
 Do not guess the manufacture year yourself from the chassis number — that will be checked separately against reference data.
 
-Finally, return an "annotations" array pinpointing up to 25 of the most important pieces of Japanese text or diagram marks on the sheet (grade box, equipment code line, damage diagram marks, key handwritten remarks) — prioritize damage diagram marks and grade/equipment codes over minor printed boilerplate. For each one, give:
+Finally, return an "annotations" array pinpointing up to 12 of the most important pieces of Japanese text or diagram marks on the sheet (grade box, equipment code line, damage diagram marks, key handwritten remarks) — prioritize damage diagram marks and grade/equipment codes over minor printed boilerplate. For each one, give:
 - Its bounding box on the image as integers from 0 to 1000, where (0,0) is the top-left corner and (1000,1000) is the bottom-right corner of the whole image: xMin, yMin, xMax, yMax.
 - A short English translation/label for what's at that spot (a few words, not a sentence).`;
 
@@ -102,27 +104,42 @@ export async function POST(request: Request) {
 
   const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: PROMPT },
-              { inline_data: { mime_type: mimeType, data: imageBase64 } },
-            ],
+  let geminiResponse: Response;
+  try {
+    geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: PROMPT },
+                { inline_data: { mime_type: mimeType, data: imageBase64 } },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: RESPONSE_SCHEMA,
+            thinkingConfig: { thinkingBudget: 1024 },
           },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-        },
-      }),
-    },
-  );
+        }),
+        signal: AbortSignal.timeout(50_000),
+      },
+    );
+  } catch (err) {
+    const timedOut = err instanceof Error && err.name === "TimeoutError";
+    return NextResponse.json(
+      {
+        error: timedOut
+          ? "Gemini took too long to respond (>50s). Try again, or use a smaller/clearer photo."
+          : "Could not reach Gemini — please try again.",
+      },
+      { status: 504 },
+    );
+  }
 
   if (!geminiResponse.ok) {
     const detail = await geminiResponse.text();
