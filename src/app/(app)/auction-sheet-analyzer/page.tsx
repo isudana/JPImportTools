@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import type { YomResult } from "@/lib/yom";
+
+type AnalyzeResult = {
+  explanation: string;
+  chassisCode: string | null;
+  serialNumber: number | null;
+  yom: YomResult | null;
+};
 
 const MAX_DIMENSION = 1600;
 const JPEG_QUALITY = 0.85;
@@ -37,14 +45,14 @@ export default function AuctionSheetAnalyzerPage() {
   const [pending, setPending] = useState<{ base64: string; mimeType: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [explanation, setExplanation] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalyzeResult | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setError(null);
-    setExplanation(null);
+    setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
 
     try {
@@ -60,7 +68,7 @@ export default function AuctionSheetAnalyzerPage() {
     if (!pending) return;
     setLoading(true);
     setError(null);
-    setExplanation(null);
+    setResult(null);
 
     try {
       const res = await fetch("/api/auction-sheet", {
@@ -72,7 +80,7 @@ export default function AuctionSheetAnalyzerPage() {
       if (!res.ok) {
         setError(data.error || "Something went wrong.");
       } else {
-        setExplanation(data.explanation);
+        setResult(data);
       }
     } catch {
       setError("Network error — please try again.");
@@ -119,11 +127,34 @@ export default function AuctionSheetAnalyzerPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
 
-      {explanation && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-gray-900">Explanation</h2>
-          <div className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{explanation}</div>
-        </div>
+      {result && (
+        <>
+          {result.chassisCode && (
+            <div
+              className={`rounded-lg border p-4 ${
+                result.yom?.status === "MATCH" && result.yom.importable
+                  ? "border-green-200 bg-green-50"
+                  : result.yom?.status === "PROJECTED_2026"
+                    ? "border-blue-200 bg-blue-50"
+                    : "border-red-200 bg-red-50"
+              }`}
+            >
+              <p className="text-xs font-medium text-gray-500">
+                Chassis {result.chassisCode}
+                {result.serialNumber != null ? ` ${result.serialNumber}` : ""} — cross-checked against
+                reference data
+              </p>
+              <p className="mt-1 text-sm font-medium text-gray-900">
+                {result.yom?.message ?? "Chassis code extracted, but not enough of the serial number was legible to check the year."}
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">Explanation</h2>
+            <div className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{result.explanation}</div>
+          </div>
+        </>
       )}
     </div>
   );

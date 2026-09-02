@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { evaluateYom, type YomResult } from "@/lib/yom";
+import type { ChassisYearRange } from "@/lib/types";
 
 const PROMPT = `You are an expert Japanese used-vehicle auction inspector, helping a Sri Lankan car importer understand an auction sheet (e.g. from USS, TAA, JAA, or similar auction houses) before they bid.
 
@@ -13,7 +15,22 @@ Read the attached auction sheet image, then write a detailed explanation in plai
 - Any handwritten auctioneer comments or remarks, translated and explained.
 - A short overall condition summary and any red flags an importer should be cautious about before bidding.
 
-If any section isn't present or legible on the sheet, say so briefly rather than guessing. Format the response as clear sections with short paragraphs or bullet points, not a raw data dump.`;
+If any section isn't present or legible on the sheet, say so briefly rather than guessing. Format the explanation as clear sections with short paragraphs or bullet points, not a raw data dump.
+
+Also separately extract, exactly as printed on the sheet:
+- The chassis/model code (the letters-and-digits prefix, e.g. "MXAA54") — leave empty if not legible.
+- The chassis serial number (the digits after the chassis code, e.g. "2040000") — leave empty if not legible.
+Do not guess the manufacture year yourself from the chassis number — that will be checked separately against reference data.`;
+
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    chassisCode: { type: "STRING" },
+    serialNumber: { type: "STRING" },
+    explanation: { type: "STRING" },
+  },
+  required: ["explanation"],
+};
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -58,6 +75,10 @@ export async function POST(request: Request) {
             ],
           },
         ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+        },
       }),
     },
   );
@@ -71,17 +92,52 @@ export async function POST(request: Request) {
   }
 
   const result = await geminiResponse.json();
-  const explanation = result.candidates?.[0]?.content?.parts
+  const rawText = result.candidates?.[0]?.content?.parts
     ?.map((p: { text?: string }) => p.text ?? "")
     .join("")
     .trim();
 
-  if (!explanation) {
+  if (!rawText) {
     return NextResponse.json(
       { error: "Gemini returned no explanation for this image." },
       { status: 502 },
     );
   }
 
-  return NextResponse.json({ explanation });
+  let parsed: { chassisCode?: string; serialNumber?: string; explanation?: string };
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    return NextResponse.json(
+      { error: "Gemini returned a response that couldn't be parsed." },
+      { status: 502 },
+    );
+  }
+
+  if (!parsed.explanation) {
+    return NextResponse.json(
+      { error: "Gemini returned no explanation for this image." },
+      { status: 502 },
+    );
+  }
+
+  const chassisCode = parsed.chassisCode?.trim() || null;
+  const serialDigits = parsed.serialNumber?.replace(/\D/g, "") || "";
+  const serial = serialDigits ? Number(serialDigits) : null;
+
+  let yom: YomResult | null = null;
+  if (chassisCode && serial != null) {
+    const { data } = await supabase
+      .from("chassis_year_ranges")
+      .select("*")
+      .ilike("chassis_code", chassisCode);
+    yom = evaluateYom((data ?? []) as ChassisYearRange[], serial);
+  }
+
+  return NextResponse.json({
+    explanation: parsed.explanation,
+    chassisCode,
+    serialNumber: serial,
+    yom,
+  });
 }
