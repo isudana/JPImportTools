@@ -103,39 +103,53 @@ export async function POST(request: Request) {
   }
 
   const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-
-  let geminiResponse: Response;
-  try {
-    geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const geminiBody = JSON.stringify({
+    contents: [
       {
+        parts: [
+          { text: PROMPT },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+      thinkingConfig: { thinkingBudget: 1024 },
+    },
+  });
+
+  const PER_ATTEMPT_TIMEOUT_MS = 45_000;
+  const MAX_ATTEMPTS = 2;
+
+  let geminiResponse: Response | undefined;
+  let timedOut = false;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      geminiResponse = await fetch(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: PROMPT },
-                { inline_data: { mime_type: mimeType, data: imageBase64 } },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: RESPONSE_SCHEMA,
-            thinkingConfig: { thinkingBudget: 1024 },
-          },
-        }),
-        signal: AbortSignal.timeout(50_000),
-      },
-    );
-  } catch (err) {
-    const timedOut = err instanceof Error && err.name === "TimeoutError";
+        body: geminiBody,
+        signal: AbortSignal.timeout(PER_ATTEMPT_TIMEOUT_MS),
+      });
+      break;
+    } catch (err) {
+      timedOut = err instanceof Error && err.name === "TimeoutError";
+      // A timeout already used up most of the request budget — retrying would likely
+      // just time out again and blow past maxDuration. Only retry a fast network failure.
+      if (timedOut || attempt === MAX_ATTEMPTS) break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  }
+
+  if (!geminiResponse) {
     return NextResponse.json(
       {
         error: timedOut
-          ? "Gemini took too long to respond (>50s). Try again, or use a smaller/clearer photo."
-          : "Could not reach Gemini — please try again.",
+          ? "Gemini took too long to respond (>45s). Try again, or use a smaller/clearer photo."
+          : "Could not reach Gemini after retrying — please try again.",
       },
       { status: 504 },
     );

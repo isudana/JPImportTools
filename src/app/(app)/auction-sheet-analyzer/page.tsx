@@ -173,7 +173,7 @@ export default function AuctionSheetAnalyzerPage() {
           disabled={!pending || loading}
           className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
         >
-          {loading ? "Analyzing…" : "Analyze"}
+          {loading ? "Analyzing…" : error ? "Retry" : "Analyze"}
         </button>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
