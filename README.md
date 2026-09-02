@@ -15,7 +15,9 @@ A utility toolkit for Japanese used car importers — accessible from anywhere, 
 cp .env.example .env.local
 ```
 
-Fill in `.env.local` with the three values from step 1. `SUPABASE_SERVICE_ROLE_KEY` is server-only (no `NEXT_PUBLIC_` prefix, so it's never sent to the browser) — it's what lets Admins create/delete users from Settings. The file is git-ignored, so none of this gets committed.
+Fill in `.env.local` with the three Supabase values from step 1. `SUPABASE_SERVICE_ROLE_KEY` is server-only (no `NEXT_PUBLIC_` prefix, so it's never sent to the browser) — it's what lets Admins create/delete users from Settings. The file is git-ignored, so none of this gets committed.
+
+For the **Auction Sheet Analyzer**, get a free `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/apikey) and add it too — it's also server-only.
 
 ## 3. Run locally
 
@@ -34,6 +36,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 - **Quotation Generator** (`/quotation`) — builds a cost quotation for a vehicle purchase: vehicle info (name/grade, capacity, fuel, YOM, colour, auction grade), Japan-side costs (buying price, exporter/importer shipping & handling), and LKR-side costs (LC and TT values converted at their own rates, Bank LC Charges, Clearing Charges, Importer Fee, Tax Amount) summed into a Total Quotation Amount. Selecting a vehicle auto-fills capacity/fuel, LC Value (its Depreciated FOB), Tax Amount (from its Yellow Book CIF), and Exporter Shipping & Handling (its Exporter Base Price + 10% of Buying Price); TT Value auto-fills as Total Cost in Japan minus LC Value. All auto-filled fields stay editable, and recompute live as Buying Price/LC Value change. LC/TT/Customs rates default from Settings and are all shown on the generated quotation. A "Download PDF" button on the generated quotation opens the browser's print dialog (choose "Save as PDF") with a print-only layout — the form and nav bar are hidden, only the quotation prints.
 - **Settings** (`/settings`) — Admins can add, edit, and delete the vehicle reference prices used by the Tax Calculator's Yellow Book lookup and the Quotation Generator's auto-fill (CIF derived automatically: `CIF = (Website Value × 100/110) × 0.85 + Shipping & Insurance`; Exporter Base Price is optional — leave blank if unknown), set the default LC/TT/Customs exchange rates, and add/remove users. Everyone else sees the same data read-only.
 - **Resources** (`/resources`) — links for sourcing, shipping, exchange rates, and vehicle history (auction sites, shipping schedules, Bank of Ceylon / Sri Lanka Customs rate pages, Japan vehicle history check).
+- **Auction Sheet Analyzer** (`/auction-sheet-analyzer`) — upload a photo of a Japanese auction sheet and get a detailed English explanation: vehicle identification, overall/exterior/interior grade, mileage and odometer warnings, equipment codes, a walkthrough of the damage diagram, and any handwritten auctioneer remarks. The photo is resized in the browser, sent to [`/api/auction-sheet`](src/app/api/auction-sheet/route.ts), analyzed by Google's Gemini API (free tier), and not stored anywhere — only the generated explanation is kept on screen.
 
 More utilities will be added under `src/app/(app)/`.
 
