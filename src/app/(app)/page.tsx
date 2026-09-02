@@ -1,12 +1,13 @@
 import Link from "next/link";
 
-type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep";
+type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep" | "redLight";
 
 const BADGE_STYLES: Record<BadgeColor, string> = {
   red: "bg-red-50 text-red-700",
   rose: "bg-rose-100 text-rose-700",
   redDeep: "bg-red-100 text-red-800",
   roseDeep: "bg-rose-50 text-rose-800",
+  redLight: "bg-red-200 text-red-900",
 };
 
 const UTILITIES: { href: string; title: string; description: string; icon: string; color: BadgeColor }[] = [
@@ -37,6 +38,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     description: "Build a cost quotation for a vehicle purchase from buying price, shipping, and fees.",
     icon: "🧾",
     color: "roseDeep",
+  },
+  {
+    href: "/auction-sheet-decoder",
+    title: "Auction Sheet Decoder",
+    description: "Decode the grade and damage codes found on a Japanese auction sheet.",
+    icon: "📋",
+    color: "redLight",
   },
 ];
 
