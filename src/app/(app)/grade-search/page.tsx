@@ -1,21 +1,5 @@
 import Image from "next/image";
-
-const GRADE_SEARCH_SITES: { make: string; url: string; logo: string }[] = [
-  { make: "Toyota", url: "https://www.toyota.co.jp/grade/dc/top", logo: "/logos/toyota.png" },
-  {
-    make: "Honda",
-    url: "https://grade.customer.honda.co.jp/apps/grade/hccg0010201/search",
-    logo: "/logos/honda.png",
-  },
-  { make: "Mazda", url: "https://support.mazda.co.jp/grade-search/search.html", logo: "/logos/mazda.jpeg" },
-  { make: "Suzuki", url: "https://sgre.suzuki.co.jp/SearchGrade", logo: "/logos/suzuki.jpeg" },
-  {
-    make: "Mitsubishi",
-    url: "https://inquiry.mitsubishi-motors.co.jp/reference/GradeSearch.do",
-    logo: "/logos/mitsubishi.jpeg",
-  },
-  { make: "Nissan", url: "https://grade-search.nissan.co.jp/GRADE/search.html", logo: "/logos/nissan.jpeg" },
-];
+import { GRADE_SEARCH_SITES } from "@/lib/gradeSearchSites";
 
 export default function GradeSearchPage() {
   return (

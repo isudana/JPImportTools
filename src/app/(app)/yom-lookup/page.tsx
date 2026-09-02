@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { ChassisYearRange } from "@/lib/types";
 import { evaluateYom, type YomResult } from "@/lib/yom";
+import { matchGradeSearchSites } from "@/lib/gradeSearchSites";
 
 export default function YomLookupPage() {
   const supabase = createClient();
@@ -52,7 +55,8 @@ export default function YomLookupPage() {
         <h1 className="text-lg font-semibold text-gray-900">YOM Lookup</h1>
         <p className="mt-1 text-sm text-gray-500">
           Look up a vehicle&apos;s manufacture year from its chassis code and serial number, based on
-          official JAMA reference tables.
+          official JAMA reference tables — and jump straight to the right manufacturer&apos;s grade
+          search site.
         </p>
       </div>
 
@@ -122,6 +126,54 @@ export default function YomLookupPage() {
               </>
             )}
           </dl>
+        </div>
+      )}
+
+      {result && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-gray-900">Check Grade</h2>
+          {(() => {
+            const sites = matchGradeSearchSites(result.makes);
+            if (sites.length === 0) {
+              return (
+                <p className="mt-2 text-sm text-gray-500">
+                  No dedicated grade search site recognized for this make yet — see{" "}
+                  <Link href="/grade-search" className="text-red-700 hover:underline">
+                    all manufacturer portals
+                  </Link>
+                  .
+                </p>
+              );
+            }
+            return (
+              <>
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter chassis code <span className="font-medium text-gray-700">{chassisCode.trim()}</span> and
+                  serial <span className="font-medium text-gray-700">{serialNumber.trim()}</span> on the
+                  manufacturer&apos;s site below.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {sites.map((site) => (
+                    <a
+                      key={site.make}
+                      href={site.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-red-400"
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="flex h-8 w-12 flex-none items-center justify-center overflow-hidden rounded-md bg-white">
+                          <Image src={site.logo} alt={`${site.make} logo`} width={48} height={32} className="h-full w-full object-contain" />
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">{site.make}</span>
+                      </span>
+                      <span className="text-xs text-gray-400">Open ↗</span>
+                    </a>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
