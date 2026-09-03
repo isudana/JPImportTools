@@ -45,6 +45,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     icon: "📋",
     color: "red",
   },
+  {
+    href: "/documents-checklist",
+    title: "Documents Checklist",
+    description: "Track documents needed for customs clearance, temporary VAT, and RMV registration.",
+    icon: "✅",
+    color: "rose",
+  },
 ];
 
 export default function HomePage() {
