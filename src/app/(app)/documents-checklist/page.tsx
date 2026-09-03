@@ -205,7 +205,7 @@ export default function DocumentsChecklistPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6 print:max-w-none">
       <div className="flex items-start justify-between gap-3 border-l-4 border-red-700 pl-3">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Documents Checklist</h1>
@@ -214,9 +214,18 @@ export default function DocumentsChecklistPage() {
             are saved on this device only.
           </p>
         </div>
-        <button type="button" onClick={resetAll} className="flex-none text-xs text-gray-400 hover:text-red-700">
-          Reset
-        </button>
+        <div className="flex flex-none items-center gap-3 print:hidden">
+          <button type="button" onClick={resetAll} className="text-xs text-gray-400 hover:text-red-700">
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
+          >
+            Download PDF
+          </button>
+        </div>
       </div>
 
       {CHECKLIST.map((section) => {
