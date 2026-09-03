@@ -71,6 +71,7 @@ const RESOURCES: {
     description: "Hambantota International Port Group vessel berthing schedule",
     icon: "⚓",
     color: "redLight",
+    logo: "/logos/hipg.png",
   },
 ];
 
