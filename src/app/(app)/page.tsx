@@ -52,6 +52,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     icon: "✅",
     color: "rose",
   },
+  {
+    href: "/tax-payment-instructions",
+    title: "Tax Payment Instructions",
+    description: "Step-by-step guide to paying a Sri Lanka Customs assessment through the BOC Flex App.",
+    icon: "💳",
+    color: "redDeep",
+  },
 ];
 
 export default function HomePage() {
