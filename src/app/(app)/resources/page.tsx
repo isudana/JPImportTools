@@ -67,7 +67,7 @@ const RESOURCES: {
   },
   {
     title: "HIPG Berthing Schedule",
-    url: "https://ezport.hipg.lk/SearchManage/VesselSchedule/Berthing",
+    url: "http://ezport.hipg.lk/SearchManage/VesselSchedule/Berthing",
     description: "Hambantota International Port Group vessel berthing schedule",
     icon: "⚓",
     color: "redLight",
