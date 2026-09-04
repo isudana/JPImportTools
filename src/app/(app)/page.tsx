@@ -59,6 +59,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     icon: "💳",
     color: "redDeep",
   },
+  {
+    href: "/roro-schedule",
+    title: "RO-RO Shipping Schedule",
+    description: "Upcoming RO-RO sailings from Japan to Hambantota, with departure ports and cutoff dates.",
+    icon: "🚢",
+    color: "rose",
+  },
 ];
 
 export default function HomePage() {
