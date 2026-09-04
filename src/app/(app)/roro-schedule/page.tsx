@@ -5,6 +5,10 @@ import type { RoroSailing } from "@/lib/roroSchedule";
 
 type ScheduleResponse = { sailings: RoroSailing[]; sourceUrl: string; fetchedAt: string };
 
+function marineTrafficSearchUrl(shipName: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`site:marinetraffic.com "${shipName}"`)}`;
+}
+
 export default function RoroSchedulePage() {
   const [data, setData] = useState<ScheduleResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +42,7 @@ export default function RoroSchedulePage() {
           <h1 className="text-lg font-semibold text-gray-900">RO-RO Shipping Schedule</h1>
           <p className="mt-1 text-sm text-gray-500">
             Upcoming RO-RO sailings from Japan to Hambantota, with Japan port departure dates (and
-            cargo cutoff where shown).
+            cargo cutoff where shown). Each ship links out to track it live on MarineTraffic.
           </p>
         </div>
         <button
@@ -78,7 +82,18 @@ export default function RoroSchedulePage() {
                 {data.sailings.map((s, i) => (
                   <tr key={`${s.shipName}-${s.voyage}-${i}`} className="border-b border-gray-100 text-gray-600 last:border-0">
                     <td className="px-4 py-2">{s.company}</td>
-                    <td className="px-4 py-2 font-medium text-gray-900">{s.shipName}</td>
+                    <td className="px-4 py-2 font-medium text-gray-900">
+                      {s.shipName}{" "}
+                      <a
+                        href={marineTrafficSearchUrl(s.shipName)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Track this vessel on MarineTraffic"
+                        className="font-normal text-red-700 hover:underline"
+                      >
+                        Track ↗
+                      </a>
+                    </td>
                     <td className="px-4 py-2">{s.voyage}</td>
                     <td className="px-4 py-2">
                       <div className="space-y-0.5">
