@@ -73,6 +73,14 @@ const RESOURCES: {
     color: "redLight",
     logo: "/logos/hipg.png",
   },
+  {
+    title: "Track My Custdeck",
+    url: "https://services.customs.gov.lk/",
+    description: "Sri Lanka Customs online services and shipment tracking",
+    icon: "📦",
+    color: "roseDeep",
+    logo: "/logos/customs.png",
+  },
 ];
 
 export default function ResourcesPage() {
