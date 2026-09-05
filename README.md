@@ -28,7 +28,17 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with a user you created in Supabase.
 
-## 4. Utilities
+## 4. Dashboard
+
+Signing in (or opening the app at all — the root URL, and the "JP ImportTools" brand in the nav bar, both go here) lands on the **Dashboard**, an at-a-glance overview with three widgets. It's not a separate menu item — it's just what "/" shows.
+
+1. **Utilities & Resources by import stage** — Estimation, Selecting the Vehicle, Shipping, Clearance, and RMV Registration, each showing the relevant utilities and resource links. Pulls directly from the same `UTILITIES` and `RESOURCES` arrays used by the Utilities page and Resources page (exported from those files), grouped by stage — so there's one source of truth for each entry's title/icon/link.
+2. **Current rates** — the live Customs Exchange Rate (JPY) (see below), plus the default LC/TT rates as configured in Settings.
+3. **Quick Vehicle Check** — enter a chassis code + serial number to get the YOM and a direct link to the matched manufacturer's grade search site (same logic as YOM Lookup); optionally upload an auction sheet photo to analyze it (same as Auction Sheet Analyzer, and its extracted chassis/serial/YOM overrides the manual entry if provided); then pick the matching Vehicle Model to see a tentative customs tax, computed from that model's Yellow Book CIF and today's live customs rate. This tentative figure ignores buying price, shipping, and the vehicle's own registration-age discount — it's a quick estimate, not a substitute for the full Tax Calculator or Quotation Generator.
+
+## 5. Utilities
+
+The full utility list also lives on its own page (`/utilities`, linked from the nav bar), separate from the Dashboard's grouped view:
 
 - **Grade Search** (`/grade-search`) — links to the official manufacturer grade-lookup portals for Toyota, Honda, Mazda, Suzuki, Mitsubishi, and Nissan.
 - **YOM Lookup** (`/yom-lookup`) — enter a chassis code + serial number to get the vehicle's manufacture year and import eligibility (2024+), backed by the `chassis_year_ranges` table from `supabase/schema.sql`. Once matched, it also shows a "Check Grade" section linking straight to the matched manufacturer's grade search portal (skipping the need to pick from all of them on the Grade Search page) — actually fetching the grade itself still has to be done manually on the manufacturer's own site, since those portals aren't built for programmatic/API access.
@@ -37,14 +47,15 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 - **Settings** (`/settings`) — Admins can add, edit, and delete the vehicle reference prices used by the Tax Calculator's Yellow Book lookup and the Quotation Generator's auto-fill (CIF derived automatically: `CIF = (Website Value × 100/110) × 0.85 + Shipping & Insurance`; Exporter Base Price is optional — leave blank if unknown), set the default LC/TT/Customs exchange rates, and add/remove users. Everyone else sees the same data read-only.
 - **Resources** (`/resources`) — links for sourcing, shipping, exchange rates, and vehicle history (auction sites, shipping schedules, Bank of Ceylon / Sri Lanka Customs rate pages, Japan vehicle history check).
 - **Auction Sheet Analyzer** (`/auction-sheet-analyzer`) — upload a photo of a Japanese auction sheet and get a detailed English explanation: vehicle identification, overall/exterior/interior grade, mileage and odometer warnings, equipment codes, a walkthrough of the damage diagram, and any handwritten auctioneer remarks. The photo is resized in the browser, sent to [`/api/auction-sheet`](src/app/api/auction-sheet/route.ts), analyzed by Google's Gemini API (free tier), and not stored anywhere — only the generated explanation is kept on screen. Gemini also extracts the chassis code and serial number off the sheet, which the server then cross-checks against the same `chassis_year_ranges` reference data as YOM Lookup — so the manufacture year/import-eligibility verdict comes from that trusted table, not from the model's own guess. Both fields are editable, so a misread or unrecognized chassis can be corrected and re-checked.
-- **Documents Checklist** (`/documents-checklist`) — a checklist of the documents needed for Customs Clearance, Temporary VAT, and RMV Registration, with notes (e.g. which items the exporter provides) and links to the relevant forms/templates. Ticks are saved in the browser's local storage only — a personal on-device aid, not shared data — so it's the same for every import rather than tracking a specific vehicle's paperwork. A "Download PDF" button prints the checklist (browser print dialog → Save as PDF).
+- **Clearance Checklist** (`/clearance-checklist`) — a checklist of the documents needed for Temporary VAT and Customs Clearance, with notes (e.g. which items the exporter provides) and links to the relevant forms/templates. Ticks are saved in the browser's local storage only — a personal on-device aid, not shared data — so it's the same for every import rather than tracking a specific vehicle's paperwork. A "Download PDF" button prints the checklist (browser print dialog → Save as PDF).
+- **RMV Registration Checklist** (`/rmv-registration-checklist`) — the same kind of checklist, for the documents needed for RMV Registration (MTA-2, Affidavit, import docs, etc.). Also downloadable as a PDF. Both checklist pages share the same rendering/local-storage logic via `src/components/ChecklistView.tsx`.
 - **Tax Payment Instructions** (`/tax-payment-instructions`) — step-by-step guide to paying a Sri Lanka Customs assessment through the BOC Flex App (Easy Actions → Bill Payments → New Bill → Sri Lanka Customs), with the exact form fields to fill in from the Assessment notice and an annotated sample notice showing where each value comes from. Also downloadable as a PDF.
 - **RO-RO Shipping Schedule** (`/roro-schedule`) — upcoming RO-RO sailings from Japan to Hambantota: company, ship, voyage, Japan port departure date(s) (with cargo cutoff where shown), and Hambantota arrival date, soonest first. Fetched live from [AutoCJ's public shipping schedule](https://autocj.co.jp/japan_shipping?dest=8) (`src/lib/roroSchedule.ts`, `/api/roro-schedule`) and filtered to Hambantota-bound sailings that haven't already departed. This is third-party data we don't operate — if AutoCJ changes their page layout, parsing may break. Each ship has a "Track ↗" link to find it live on MarineTraffic — via a Google site-search rather than a direct MarineTraffic deep link, since MarineTraffic's own vessel search isn't a plain URL-parameter search (their site gates it behind a cookie-consent flow, and a guessed `?keyword=` URL 404s).
 - **Customs Exchange Rate (JPY)** (`/customs-exchange-rate`) — this week's official JPY rate, straight from Sri Lanka Customs. Finds the latest "Rates of Exchange" PDF linked from [customs.gov.lk/exchange-rates](https://www.customs.gov.lk/exchange-rates/) (by parsing the "Effective from DD.MM.YYYY" date shown next to each link, not filename order — the site's own filenames aren't consistently dated), downloads it, and extracts the JPY row. These PDFs are scanned gazette notifications with no text layer, so extraction goes through Gemini (which understands PDFs directly, same integration as the Auction Sheet Analyzer) rather than a separate OCR pipeline (`src/lib/customsExchangeRate.ts`, `/api/customs-exchange-rate`). Results are cached in the `customs_exchange_rate_cache` table and only re-fetched once per day (Asia/Colombo time) — a "Refresh" click forces an immediate live re-check regardless of the cache.
 
 More utilities will be added under `src/app/(app)/`.
 
-## 5. Users & roles
+## 6. Users & roles
 
 Every account has a role, `ADMIN` or `USER` (read-only), stored in a `profiles` table auto-created for each `auth.users` row.
 
@@ -52,7 +63,7 @@ Every account has a role, `ADMIN` or `USER` (read-only), stored in a `profiles` 
 - From then on, **Settings → Users** is where Admins add or remove accounts and change roles. Adding a user there sets a temporary password and role directly (via `/api/users`, which uses the service-role key server-side — regular users can't call it).
 - `USER` accounts can use every utility, but can't add/edit/delete vehicle reference prices, change the default exchange rates, or manage other users — Settings renders those sections read-only for them. This is enforced both in the UI and at the database level (Postgres RLS policies check `current_user_role() = 'ADMIN'`), so it holds even if someone bypasses the UI.
 
-## 6. Deploy so it's reachable from anywhere
+## 7. Deploy so it's reachable from anywhere
 
 1. Push this project to a GitHub repository.
 2. Go to [vercel.com](https://vercel.com), sign up, and "Import Project" from that repo.

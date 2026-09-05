@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 import { depreciatedFob } from "@/lib/vehiclePricing";
-import { calculateTax, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
+import { calculateTax, vehicleFuelCategory, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
 const JPY = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -95,10 +95,6 @@ export default function QuotationPage() {
         setCustomsRate(String(settings.default_customs_rate));
       });
   }, [supabase]);
-
-  function vehicleFuelCategory(vehicle: VehicleReferencePrice): FuelCategory {
-    return vehicle.fuel === "Hybrid" ? "Hybrid" : vehicle.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
-  }
 
   // Recomputes TT Value (Total Cost in Japan − LC Value) and, when a vehicle is matched, Tax Amount.
   // Tax Amount uses the vehicle's Yellow Book CIF normally, but when LC Value exceeds that Yellow
