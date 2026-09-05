@@ -2090,3 +2090,22 @@ alter table app_settings enable row level security;
 create policy "read app_settings" on app_settings for select using (auth.role() = 'authenticated');
 create policy "update app_settings" on app_settings for update using (public.current_user_role() = 'ADMIN');
 
+-- Customs Exchange Rate (JPY) cache: refreshed at most once per day (Asia/Colombo), so every
+-- page load doesn't re-download the PDF and re-run Gemini extraction.
+drop table if exists customs_exchange_rate_cache cascade;
+
+create table customs_exchange_rate_cache (
+  id int primary key default 1,
+  jpy_rate numeric,
+  effective_from text,
+  effective_to text,
+  pdf_url text,
+  fetched_at timestamptz,
+  constraint customs_exchange_rate_cache_singleton check (id = 1)
+);
+insert into customs_exchange_rate_cache (id) values (1);
+
+alter table customs_exchange_rate_cache enable row level security;
+create policy "read customs_exchange_rate_cache" on customs_exchange_rate_cache for select using (auth.role() = 'authenticated');
+create policy "update customs_exchange_rate_cache" on customs_exchange_rate_cache for update using (auth.role() = 'authenticated');
+

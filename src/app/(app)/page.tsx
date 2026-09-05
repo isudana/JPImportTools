@@ -66,6 +66,13 @@ const UTILITIES: { href: string; title: string; description: string; icon: strin
     icon: "🚢",
     color: "rose",
   },
+  {
+    href: "/customs-exchange-rate",
+    title: "Customs Exchange Rate (JPY)",
+    description: "This week's official JPY rate, extracted from Sri Lanka Customs' latest rates PDF.",
+    icon: "💴",
+    color: "redDeep",
+  },
 ];
 
 export default function HomePage() {
