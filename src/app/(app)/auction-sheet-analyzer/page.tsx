@@ -6,11 +6,14 @@ import { evaluateYom, type YomResult } from "@/lib/yom";
 import type { ChassisYearRange } from "@/lib/types";
 import { resizeImage } from "@/lib/resizeImage";
 
+type Annotation = { x: number; y: number; translation: string };
+
 type AnalyzeResult = {
   explanation: string;
   chassisCode: string | null;
   serialNumber: number | null;
   yom: YomResult | null;
+  annotations: Annotation[];
 };
 
 export default function AuctionSheetAnalyzerPage() {
@@ -25,6 +28,7 @@ export default function AuctionSheetAnalyzerPage() {
   const [yomResult, setYomResult] = useState<YomResult | null>(null);
   const [yomError, setYomError] = useState<string | null>(null);
   const [yomChecking, setYomChecking] = useState(false);
+  const [showMarkers, setShowMarkers] = useState(true);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -148,6 +152,52 @@ export default function AuctionSheetAnalyzerPage() {
 
       {result && (
         <>
+          {previewUrl && result.annotations.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900">Translated Sections</h2>
+                <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={showMarkers}
+                    onChange={(e) => setShowMarkers(e.target.checked)}
+                  />
+                  Show markers
+                </label>
+              </div>
+              <p className="text-xs text-gray-400">
+                Numbered markers point roughly at each item — they&apos;re not exact outlines, just enough to
+                find the right area. See the matching number in the list below for the translation.
+              </p>
+              <div className="relative inline-block w-full overflow-hidden rounded-md border border-gray-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Auction sheet" className="block w-full" />
+                {showMarkers &&
+                  result.annotations.map((a, i) => (
+                    <span
+                      key={i}
+                      className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-700 text-[11px] font-semibold text-white ring-2 ring-white"
+                      style={{ left: `${a.x / 10}%`, top: `${a.y / 10}%` }}
+                    >
+                      {i + 1}
+                    </span>
+                  ))}
+              </div>
+              {showMarkers && (
+                <ol className="grid grid-cols-1 gap-1 text-sm text-gray-700 sm:grid-cols-2">
+                  {result.annotations.map((a, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-red-700 text-[11px] font-semibold text-white">
+                        {i + 1}
+                      </span>
+                      {a.translation}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
             <p className="text-xs font-medium text-gray-500">
               Chassis code and serial number extracted from the photo — edit if not recognized or
