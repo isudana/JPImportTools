@@ -28,12 +28,12 @@ const LIFECYCLE: LifecyclePhase[] = [
   {
     phase: "Shipping",
     utilityHrefs: ["/roro-schedule"],
-    resourceTitles: ["HIPG Berthing Schedule", "Track My Custdeck"],
+    resourceTitles: ["HIPG Berthing Schedule"],
   },
   {
     phase: "Clearance",
     utilityHrefs: ["/clearance-checklist", "/letter-generator", "/tax-payment-instructions"],
-    resourceTitles: ["Sri Lanka Customs Account Creation"],
+    resourceTitles: ["Sri Lanka Customs Account Creation", "Track My Custdeck"],
   },
   {
     phase: "RMV Registration",
