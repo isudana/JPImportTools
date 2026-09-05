@@ -62,6 +62,13 @@ export const UTILITIES: UtilityEntry[] = [
     color: "roseDeep",
   },
   {
+    href: "/letter-generator",
+    title: "Letter Generator",
+    description: "Fill in your details once to generate the mobile confirmation and personal-use letters together.",
+    icon: "✏️",
+    color: "red",
+  },
+  {
     href: "/tax-payment-instructions",
     title: "Tax Payment Instructions",
     description: "Step-by-step guide to paying a Sri Lanka Customs assessment through the BOC Flex App.",
