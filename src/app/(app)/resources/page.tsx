@@ -10,14 +10,16 @@ const BADGE_STYLES: Record<BadgeColor, string> = {
   redLight: "bg-red-200 text-red-900",
 };
 
-const RESOURCES: {
+export type ResourceEntry = {
   title: string;
   url: string;
   description: string;
   icon: string;
   color: BadgeColor;
   logo?: string;
-}[] = [
+};
+
+export const RESOURCES: ResourceEntry[] = [
   {
     title: "Japan Auction (JP Center)",
     url: "https://jpcenter.ru/",

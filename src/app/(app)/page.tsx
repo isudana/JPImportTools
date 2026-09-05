@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep";
+export type BadgeColor = "red" | "rose" | "redDeep" | "roseDeep";
 
 const BADGE_STYLES: Record<BadgeColor, string> = {
   red: "bg-red-50 text-red-700",
@@ -9,7 +9,9 @@ const BADGE_STYLES: Record<BadgeColor, string> = {
   roseDeep: "bg-rose-50 text-rose-800",
 };
 
-const UTILITIES: { href: string; title: string; description: string; icon: string; color: BadgeColor }[] = [
+export type UtilityEntry = { href: string; title: string; description: string; icon: string; color: BadgeColor };
+
+export const UTILITIES: UtilityEntry[] = [
   {
     href: "/grade-search",
     title: "Grade Search",

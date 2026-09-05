@@ -28,7 +28,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with a user you created in Supabase.
 
-## 4. Utilities
+## 4. Dashboard
+
+The **Dashboard** (`/dashboard`) is the at-a-glance overview, with three widgets:
+
+1. **Utilities & Resources by import stage** — Estimation, Selecting the Vehicle, Shipping, Clearance, and RMV Registration, each showing the relevant utilities and resource links. Pulls directly from the same `UTILITIES` and `RESOURCES` arrays used by the Utilities home page and Resources page (exported from those files), grouped by stage — so there's one source of truth for each entry's title/icon/link.
+2. **Current rates** — the live Customs Exchange Rate (JPY) (see below), plus the default LC/TT rates as configured in Settings.
+3. **Quick Vehicle Check** — enter a chassis code + serial number to get the YOM and a direct link to the matched manufacturer's grade search site (same logic as YOM Lookup); optionally upload an auction sheet photo to analyze it (same as Auction Sheet Analyzer, and its extracted chassis/serial/YOM overrides the manual entry if provided); then pick the matching Yellow Book model to see a tentative customs tax, computed from that model's CIF and today's live customs rate. This tentative figure ignores buying price, shipping, and the vehicle's own registration-age discount — it's a quick estimate, not a substitute for the full Tax Calculator or Quotation Generator.
+
+## 5. Utilities
 
 - **Grade Search** (`/grade-search`) — links to the official manufacturer grade-lookup portals for Toyota, Honda, Mazda, Suzuki, Mitsubishi, and Nissan.
 - **YOM Lookup** (`/yom-lookup`) — enter a chassis code + serial number to get the vehicle's manufacture year and import eligibility (2024+), backed by the `chassis_year_ranges` table from `supabase/schema.sql`. Once matched, it also shows a "Check Grade" section linking straight to the matched manufacturer's grade search portal (skipping the need to pick from all of them on the Grade Search page) — actually fetching the grade itself still has to be done manually on the manufacturer's own site, since those portals aren't built for programmatic/API access.
@@ -44,7 +52,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 
 More utilities will be added under `src/app/(app)/`.
 
-## 5. Users & roles
+## 6. Users & roles
 
 Every account has a role, `ADMIN` or `USER` (read-only), stored in a `profiles` table auto-created for each `auth.users` row.
 
@@ -52,7 +60,7 @@ Every account has a role, `ADMIN` or `USER` (read-only), stored in a `profiles` 
 - From then on, **Settings → Users** is where Admins add or remove accounts and change roles. Adding a user there sets a temporary password and role directly (via `/api/users`, which uses the service-role key server-side — regular users can't call it).
 - `USER` accounts can use every utility, but can't add/edit/delete vehicle reference prices, change the default exchange rates, or manage other users — Settings renders those sections read-only for them. This is enforced both in the UI and at the database level (Postgres RLS policies check `current_user_role() = 'ADMIN'`), so it holds even if someone bypasses the UI.
 
-## 6. Deploy so it's reachable from anywhere
+## 7. Deploy so it's reachable from anywhere
 
 1. Push this project to a GitHub repository.
 2. Go to [vercel.com](https://vercel.com), sign up, and "Import Project" from that repo.

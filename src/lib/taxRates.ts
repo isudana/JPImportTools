@@ -1,5 +1,9 @@
 export type FuelCategory = "Petrol" | "Hybrid" | "Series_Hybrid";
 
+export function vehicleFuelCategory(vehicle: { fuel: string }): FuelCategory {
+  return vehicle.fuel === "Hybrid" ? "Hybrid" : vehicle.fuel === "Series_Hybrid" ? "Series_Hybrid" : "Petrol";
+}
+
 export const CID_RATE = 0.3;
 export const SUR_RATE = 0.5;
 export const VAT_RATE = 0.18;
