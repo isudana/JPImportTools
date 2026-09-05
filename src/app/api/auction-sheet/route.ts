@@ -7,17 +7,32 @@ export const maxDuration = 60;
 
 const PROMPT = `You are an expert Japanese used-vehicle auction inspector, helping a Sri Lankan car importer understand an auction sheet (e.g. from USS, TAA, JAA, or similar auction houses) before they bid.
 
-Read the attached auction sheet image, then write a detailed explanation in plain English covering:
-- Vehicle identification: maker, model, chassis/model code, year, and any other identifying details visible.
-- Overall auction grade (e.g. R, 4, 4.5, 5) and what it means in practice.
-- Exterior grade and interior grade separately, if both are shown.
-- Mileage, and whether the odometer has any warning mark (e.g. a mark indicating the reading may not be reliable).
-- Equipment/options codes shown (e.g. AC, PS, PW, AW, SR, TV, NAV) translated into plain English.
-- A walkthrough of the damage/condition diagram: for each marked position on the body diagram, state the panel/area and what the code means (e.g. scratch, dent, rust, repaint, replacement), in plain language a non-Japanese-speaking buyer can follow.
-- Any handwritten auctioneer comments or remarks, translated and explained.
-- A short overall condition summary and any red flags an importer should be cautious about before bidding.
+Read the attached auction sheet image and extract the following structured information.
 
-If any section isn't present or legible on the sheet, say so briefly rather than guessing. Format the explanation as clear sections with short paragraphs or bullet points, not a raw data dump.
+1. Vehicle identification (vehicleInfo):
+- model: the vehicle's model name (e.g. "Corolla Cross").
+- grade: the vehicle's trim/grade name if shown separately from the overall auction grade (e.g. "Hybrid Z") — leave empty if not distinguishable from the overall grade.
+- modelCode: the model/chassis code prefix (e.g. "MXAA54") if printed.
+- yom: the year of manufacture as printed on the sheet, if shown.
+- displacement: engine displacement/capacity as printed (e.g. "1500cc") — leave empty if not shown.
+- drivetrain: exactly "2WD", "4WD", or "Unknown" if not determinable from the sheet.
+- mileage: the odometer reading as printed, noting if there is a warning mark next to it indicating the reading may be unreliable.
+
+2. Grades and diagram marks (grades):
+- overallGrade: the overall auction grade (e.g. "4.5", "R", "5").
+- interiorGrade: the interior grade if shown separately (e.g. "B", "C") — leave empty if not shown separately.
+- marksSummary: a walkthrough of the damage/condition diagram — for each marked position on the body diagram, state the panel/area and what the code means (e.g. scratch, dent, rust, repaint, replacement), in plain language a non-Japanese-speaking buyer can follow. If no marks are shown, say so briefly.
+
+3. Available options (availableOptions): Auction sheets print a list of equipment/option codes (e.g. AC, PS, PW, AW, SR, TV, NAV) and mark — usually by circling, or otherwise clearly indicating — only the ones actually fitted to this specific vehicle. Return ONLY the codes that are circled/marked as fitted, translated to plain English (e.g. "Sunroof", "Alloy Wheels"). Do NOT include codes that are printed but not circled/marked — an option that isn't marked is not present on this vehicle and should be omitted entirely, not listed as unavailable.
+
+4. Highlights (highlights) — translate to English if present on the sheet; leave a field as an empty string if that section doesn't appear on this sheet (do not fabricate content):
+- inspectorReport: the inspector's report/comment section.
+- notes: any other notes or remarks section distinct from the inspector's report.
+- salesPoints: any "sales points" or highlighted selling-points section.
+
+5. explanation: A short overall condition summary and any red flags an importer should be cautious about before bidding, based on everything above. Keep this brief — the detailed information belongs in the structured fields above, not repeated here.
+
+If any field isn't present or legible on the sheet, say so briefly in that field rather than guessing.
 
 Also separately extract, exactly as printed on the sheet:
 - The chassis/model code (the letters-and-digits prefix, e.g. "MXAA54") — leave empty if not legible.
@@ -33,6 +48,35 @@ const RESPONSE_SCHEMA = {
   properties: {
     chassisCode: { type: "STRING" },
     serialNumber: { type: "STRING" },
+    vehicleInfo: {
+      type: "OBJECT",
+      properties: {
+        model: { type: "STRING" },
+        grade: { type: "STRING" },
+        modelCode: { type: "STRING" },
+        yom: { type: "STRING" },
+        displacement: { type: "STRING" },
+        drivetrain: { type: "STRING" },
+        mileage: { type: "STRING" },
+      },
+    },
+    grades: {
+      type: "OBJECT",
+      properties: {
+        overallGrade: { type: "STRING" },
+        interiorGrade: { type: "STRING" },
+        marksSummary: { type: "STRING" },
+      },
+    },
+    availableOptions: { type: "ARRAY", items: { type: "STRING" } },
+    highlights: {
+      type: "OBJECT",
+      properties: {
+        inspectorReport: { type: "STRING" },
+        notes: { type: "STRING" },
+        salesPoints: { type: "STRING" },
+      },
+    },
     explanation: { type: "STRING" },
     annotations: {
       type: "ARRAY",
@@ -66,6 +110,55 @@ function sanitizeAnnotations(raw: unknown): Annotation[] {
       return { x, y, translation };
     })
     .filter((a): a is Annotation => a !== null);
+}
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+type VehicleInfo = {
+  model: string;
+  grade: string;
+  modelCode: string;
+  yom: string;
+  displacement: string;
+  drivetrain: "2WD" | "4WD" | "Unknown";
+  mileage: string;
+};
+
+function sanitizeVehicleInfo(raw: unknown): VehicleInfo {
+  const v = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const drivetrainRaw = str(v.drivetrain).toUpperCase();
+  const drivetrain: VehicleInfo["drivetrain"] =
+    drivetrainRaw === "4WD" ? "4WD" : drivetrainRaw === "2WD" ? "2WD" : "Unknown";
+  return {
+    model: str(v.model),
+    grade: str(v.grade),
+    modelCode: str(v.modelCode),
+    yom: str(v.yom),
+    displacement: str(v.displacement),
+    drivetrain,
+    mileage: str(v.mileage),
+  };
+}
+
+type Grades = { overallGrade: string; interiorGrade: string; marksSummary: string };
+
+function sanitizeGrades(raw: unknown): Grades {
+  const g = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return { overallGrade: str(g.overallGrade), interiorGrade: str(g.interiorGrade), marksSummary: str(g.marksSummary) };
+}
+
+type Highlights = { inspectorReport: string; notes: string; salesPoints: string };
+
+function sanitizeHighlights(raw: unknown): Highlights {
+  const h = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return { inspectorReport: str(h.inspectorReport), notes: str(h.notes), salesPoints: str(h.salesPoints) };
+}
+
+function sanitizeOptions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((o) => str(o)).filter(Boolean);
 }
 
 export async function POST(request: Request) {
@@ -155,7 +248,16 @@ export async function POST(request: Request) {
     );
   }
 
-  let parsed: { chassisCode?: string; serialNumber?: string; explanation?: string; annotations?: unknown };
+  let parsed: {
+    chassisCode?: string;
+    serialNumber?: string;
+    explanation?: string;
+    annotations?: unknown;
+    vehicleInfo?: unknown;
+    grades?: unknown;
+    availableOptions?: unknown;
+    highlights?: unknown;
+  };
   try {
     parsed = JSON.parse(rawText);
   } catch {
@@ -191,5 +293,9 @@ export async function POST(request: Request) {
     serialNumber: serial,
     yom,
     annotations: sanitizeAnnotations(parsed.annotations),
+    vehicleInfo: sanitizeVehicleInfo(parsed.vehicleInfo),
+    grades: sanitizeGrades(parsed.grades),
+    availableOptions: sanitizeOptions(parsed.availableOptions),
+    highlights: sanitizeHighlights(parsed.highlights),
   });
 }
