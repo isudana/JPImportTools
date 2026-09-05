@@ -73,6 +73,13 @@ const RESOURCES: {
     color: "redLight",
     logo: "/logos/hipg.png",
   },
+  {
+    title: "RMV Current Registration Number",
+    url: "https://eservices.motortraffic.gov.lk/OngoingNo/loadOngoingVehicleNumber.action?age=99",
+    description: "Check the last issued vehicle registration number by category",
+    icon: "🔢",
+    color: "roseDeep",
+  },
 ];
 
 export default function ResourcesPage() {
