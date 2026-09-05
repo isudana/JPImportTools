@@ -9,6 +9,9 @@ type RateResponse = {
   effectiveTo: string;
   pdfUrl: string;
   fetchedAt: string;
+  cached: boolean;
+  stale?: boolean;
+  error?: string;
 };
 
 export default function CustomsExchangeRatePage() {
@@ -16,8 +19,8 @@ export default function CustomsExchangeRatePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function fetchRate() {
-    return fetch("/api/customs-exchange-rate")
+  function fetchRate(force: boolean) {
+    return fetch(`/api/customs-exchange-rate${force ? "?force=1" : ""}`)
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || "Something went wrong.");
@@ -28,13 +31,13 @@ export default function CustomsExchangeRatePage() {
   }
 
   useEffect(() => {
-    fetchRate();
+    fetchRate(false);
   }, []);
 
   function handleRefresh() {
     setLoading(true);
     setError(null);
-    fetchRate();
+    fetchRate(true);
   }
 
   return (
@@ -44,7 +47,7 @@ export default function CustomsExchangeRatePage() {
           <h1 className="text-lg font-semibold text-gray-900">Customs Exchange Rate (JPY)</h1>
           <p className="mt-1 text-sm text-gray-500">
             This week&apos;s official JPY rate, extracted from Sri Lanka Customs&apos; latest published
-            rates PDF.
+            rates PDF. Cached once per day — use Refresh to force a live re-check.
           </p>
         </div>
         <button
@@ -58,6 +61,12 @@ export default function CustomsExchangeRatePage() {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {data?.stale && (
+        <p className="text-sm text-amber-700">
+          Live refresh failed ({data.error}) — showing the last cached rate instead.
+        </p>
+      )}
 
       {data && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
@@ -74,8 +83,10 @@ export default function CustomsExchangeRatePage() {
             ·{" "}
             <a href={EXCHANGE_RATES_PAGE} target="_blank" rel="noopener noreferrer" className="text-red-700 hover:underline">
               Exchange Rates page
-            </a>{" "}
-            — fetched {new Date(data.fetchedAt).toLocaleString()}
+            </a>
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            {data.cached ? "Cached from" : "Freshly fetched"} {new Date(data.fetchedAt).toLocaleString()}
           </p>
         </div>
       )}
