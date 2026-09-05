@@ -22,7 +22,11 @@ If any section isn't present or legible on the sheet, say so briefly rather than
 Also separately extract, exactly as printed on the sheet:
 - The chassis/model code (the letters-and-digits prefix, e.g. "MXAA54") — leave empty if not legible.
 - The chassis serial number (the digits after the chassis code, e.g. "2040000") — leave empty if not legible.
-Do not guess the manufacture year yourself from the chassis number — that will be checked separately against reference data.`;
+Do not guess the manufacture year yourself from the chassis number — that will be checked separately against reference data.
+
+Finally, return an "annotations" array pinpointing up to 15 of the most important pieces of Japanese text or diagram marks on the sheet (grade box, equipment code line, damage diagram marks, key handwritten remarks) — prioritize damage diagram marks and grade/equipment codes over minor printed boilerplate. For each one, give:
+- A single approximate point (x, y) marking roughly where it is on the image, as integers from 0 to 1000, where (0,0) is the top-left corner and (1000,1000) is the bottom-right corner of the whole image. This just needs to be close, not pixel-perfect — it will be shown as a small numbered marker pointing at the general area, not an exact outline.
+- A short English translation/label for what's at that spot (a few words, not a sentence).`;
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -30,9 +34,39 @@ const RESPONSE_SCHEMA = {
     chassisCode: { type: "STRING" },
     serialNumber: { type: "STRING" },
     explanation: { type: "STRING" },
+    annotations: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          x: { type: "INTEGER" },
+          y: { type: "INTEGER" },
+          translation: { type: "STRING" },
+        },
+        required: ["x", "y", "translation"],
+      },
+    },
   },
   required: ["explanation"],
 };
+
+type Annotation = { x: number; y: number; translation: string };
+
+function sanitizeAnnotations(raw: unknown): Annotation[] {
+  if (!Array.isArray(raw)) return [];
+  const clamp = (n: unknown) => Math.max(0, Math.min(1000, Number(n)));
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const a = item as Record<string, unknown>;
+      const x = clamp(a.x);
+      const y = clamp(a.y);
+      const translation = typeof a.translation === "string" ? a.translation.trim() : "";
+      if (!translation || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return { x, y, translation };
+    })
+    .filter((a): a is Annotation => a !== null);
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -121,7 +155,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let parsed: { chassisCode?: string; serialNumber?: string; explanation?: string };
+  let parsed: { chassisCode?: string; serialNumber?: string; explanation?: string; annotations?: unknown };
   try {
     parsed = JSON.parse(rawText);
   } catch {
@@ -156,5 +190,6 @@ export async function POST(request: Request) {
     chassisCode,
     serialNumber: serial,
     yom,
+    annotations: sanitizeAnnotations(parsed.annotations),
   });
 }
