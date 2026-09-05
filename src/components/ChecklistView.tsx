@@ -106,18 +106,27 @@ export default function ChecklistView({
         </div>
         {item.note && <p className="ml-6 text-xs text-gray-400">{item.note}</p>}
         {item.links && (
-          <div className="ml-6 mt-0.5 flex flex-wrap gap-3">
-            {item.links.map((link) => (
-              <a
-                key={link.url}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-red-700 hover:underline"
-              >
-                {link.label} ↗
-              </a>
-            ))}
+          <div className="ml-6 mt-0.5 space-y-0.5">
+            <div className="flex flex-wrap gap-3 print:hidden">
+              {item.links.map((link) => (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-red-700 hover:underline"
+                >
+                  {link.label} ↗
+                </a>
+              ))}
+            </div>
+            <div className="hidden print:block">
+              {item.links.map((link) => (
+                <p key={link.url} className="text-[10px] break-all text-gray-500">
+                  {link.label}: {link.url}
+                </p>
+              ))}
+            </div>
           </div>
         )}
       </div>
