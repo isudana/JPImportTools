@@ -64,7 +64,7 @@ export const UTILITIES: UtilityEntry[] = [
   {
     href: "/letter-generator",
     title: "Letter Generator",
-    description: "Fill in your details and generate the mobile confirmation or personal-use letters.",
+    description: "Fill in your details once to generate the mobile confirmation and personal-use letters together.",
     icon: "✏️",
     color: "red",
   },

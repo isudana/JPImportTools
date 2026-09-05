@@ -3,30 +3,16 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-type FieldKey = "name" | "address" | "email" | "date" | "mobile" | "tin" | "officeAddress";
+type Carrier = "mobitel" | "dialog";
 
-type Field = { key: FieldKey; label: string; placeholder?: string; multiline?: boolean; optional?: boolean };
-
-type TemplateId = "mobitel" | "dialog" | "personal-use";
-
-const NAME: Field = { key: "name", label: "Full Name" };
-const ADDRESS: Field = { key: "address", label: "Address", multiline: true, placeholder: "Address line 1\nAddress line 2\nAddress line 3" };
-const EMAIL: Field = { key: "email", label: "Email" };
-const DATE: Field = { key: "date", label: "Date" };
-const MOBILE: Field = { key: "mobile", label: "Mobile Number" };
-const TIN: Field = { key: "tin", label: "TIN" };
-const OFFICE_ADDRESS: Field = {
-  key: "officeAddress",
-  label: "Your Regional Telecom Office Address (optional)",
-  multiline: true,
-  optional: true,
-  placeholder: "Fill in if known — otherwise leave blank and add it by hand",
-};
-
-const TEMPLATES: Record<TemplateId, { title: string; fields: Field[] }> = {
-  mobitel: { title: "Mobitel — Mobile Network Stay Confirmation", fields: [NAME, ADDRESS, EMAIL, DATE, MOBILE, OFFICE_ADDRESS] },
-  dialog: { title: "Dialog — Mobile Network Stay Confirmation", fields: [NAME, ADDRESS, EMAIL, DATE, MOBILE] },
-  "personal-use": { title: "Letter of Personal Use (IRD)", fields: [NAME, ADDRESS, EMAIL, DATE, TIN] },
+type Values = {
+  name: string;
+  address: string;
+  email: string;
+  date: string;
+  mobile: string;
+  officeAddress: string;
+  tin: string;
 };
 
 function todayFormatted(): string {
@@ -46,53 +32,52 @@ function Lines({ text }: { text: string }) {
   );
 }
 
-function LetterBody({ templateId, values }: { templateId: TemplateId; values: Record<string, string> }) {
-  const v = (key: FieldKey) => values[key]?.trim() || "";
-
-  if (templateId === "mobitel" || templateId === "dialog") {
-    const recipient =
-      templateId === "dialog" ? (
-        <Lines text={"Dialog Axiata PLC\nNo. 475, Union Place,\nColombo 02"} />
-      ) : (
-        <>
-          <Lines text={"SLT Mobitel\nRegional Telecom Office,\nSri Lanka Telecom,"} />
-          {v("officeAddress") && <Lines text={v("officeAddress")} />}
-        </>
-      );
-    return (
-      <div className="space-y-4 text-sm text-gray-900">
-        <p>
-          <Lines text={v("name")} />
-          {v("address") && <Lines text={v("address")} />}
-          {v("email")}
-        </p>
-        <p>{v("date") || todayFormatted()}</p>
-        <p>{recipient}</p>
-        <p>Dear Sir/Madam,</p>
-        <p className="font-medium">Request for Mobile Network Stay Confirmation Letter</p>
-        <p>
-          Please provide me with a mobile network stay confirmation letter for my mobile number {v("mobile")},
-          indicating the name, address, and the NIC number.
-        </p>
-        <p>Thank you.</p>
-        <p>
-          Sincerely,
-          <br />
-          <br />
-          <br />
-          {v("name")}
-        </p>
-      </div>
+function MobileConfirmationLetter({ carrier, values }: { carrier: Carrier; values: Values }) {
+  const recipient =
+    carrier === "dialog" ? (
+      <Lines text={"Dialog Axiata PLC\nNo. 475, Union Place,\nColombo 02"} />
+    ) : (
+      <>
+        <Lines text={"SLT Mobitel\nRegional Telecom Office,\nSri Lanka Telecom,"} />
+        {values.officeAddress.trim() && <Lines text={values.officeAddress} />}
+      </>
     );
-  }
 
   return (
     <div className="space-y-4 text-sm text-gray-900">
       <p>
-        {v("address") && <Lines text={v("address")} />}
-        {v("email")}
+        <Lines text={values.name} />
+        {values.address.trim() && <Lines text={values.address} />}
+        {values.email}
       </p>
-      <p>{v("date") || todayFormatted()}</p>
+      <p>{values.date || todayFormatted()}</p>
+      <p>{recipient}</p>
+      <p>Dear Sir/Madam,</p>
+      <p className="font-medium">Request for Mobile Network Stay Confirmation Letter</p>
+      <p>
+        Please provide me with a mobile network stay confirmation letter for my mobile number {values.mobile},
+        indicating the name, address, and the NIC number.
+      </p>
+      <p>Thank you.</p>
+      <p>
+        Sincerely,
+        <br />
+        <br />
+        <br />
+        {values.name}
+      </p>
+    </div>
+  );
+}
+
+function PersonalUseLetter({ values }: { values: Values }) {
+  return (
+    <div className="space-y-4 text-sm text-gray-900">
+      <p>
+        {values.address.trim() && <Lines text={values.address} />}
+        {values.email}
+      </p>
+      <p>{values.date || todayFormatted()}</p>
       <p>
         The Commissioner
         <br />
@@ -101,10 +86,10 @@ function LetterBody({ templateId, values }: { templateId: TemplateId; values: Re
         Colombo 02,
       </p>
       <p>Dear Sir/Madam,</p>
-      <p>TIN: {v("tin")}</p>
+      <p>TIN: {values.tin}</p>
       <p className="font-medium">Confirmation of Vehicle Import for Personal Use</p>
       <p>
-        I, {v("name")}, hereby confirm that the vehicle I am importing under my name is solely intended for
+        I, {values.name}, hereby confirm that the vehicle I am importing under my name is solely intended for
         personal use and not for any commercial purposes.
       </p>
       <p>Thank you.</p>
@@ -113,9 +98,9 @@ function LetterBody({ templateId, values }: { templateId: TemplateId; values: Re
         <br />
         <br />
         <br />
-        {v("name")}
+        {values.name}
         <br />
-        TIN: {v("tin")}
+        TIN: {values.tin}
       </p>
     </div>
   );
@@ -123,15 +108,19 @@ function LetterBody({ templateId, values }: { templateId: TemplateId; values: Re
 
 function LetterGeneratorInner() {
   const searchParams = useSearchParams();
-  const initialTemplate = searchParams.get("template");
-  const [templateId, setTemplateId] = useState<TemplateId>(
-    initialTemplate && initialTemplate in TEMPLATES ? (initialTemplate as TemplateId) : "mobitel",
-  );
-  const [values, setValues] = useState<Record<string, string>>({ date: todayFormatted() });
+  const initialCarrier = searchParams.get("template");
+  const [carrier, setCarrier] = useState<Carrier>(initialCarrier === "dialog" ? "dialog" : "mobitel");
+  const [values, setValues] = useState<Values>({
+    name: "",
+    address: "",
+    email: "",
+    date: todayFormatted(),
+    mobile: "",
+    officeAddress: "",
+    tin: "",
+  });
 
-  const template = TEMPLATES[templateId];
-
-  function setField(key: FieldKey, value: string) {
+  function setField(key: keyof Values, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -141,13 +130,14 @@ function LetterGeneratorInner() {
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Letter Generator</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Fill in your details and generate one of the standard letters referenced in the Clearance Checklist.
+            Fill in your details once to generate both Clearance letters: the mobile network stay confirmation
+            request and the IRD letter of personal use.
           </p>
         </div>
         <button
           type="button"
           onClick={() => {
-            document.title = template.title;
+            document.title = `Clearance Letters - ${values.name || "Vehicle Import"}`;
             window.print();
           }}
           className="flex-none rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
@@ -157,48 +147,105 @@ function LetterGeneratorInner() {
       </div>
 
       <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 print:hidden">
-        <label className="block">
-          <span className="block text-xs font-medium text-gray-500">Letter</span>
-          <select
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value as TemplateId)}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-          >
-            {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => (
-              <option key={id} value={id}>
-                {TEMPLATES[id].title}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <div className="grid grid-cols-2 gap-3">
-          {template.fields.map((field) => (
-            <label key={field.key} className={field.multiline ? "col-span-2 block" : "block"}>
-              <span className="block text-xs font-medium text-gray-500">{field.label}</span>
-              {field.multiline ? (
-                <textarea
-                  value={values[field.key] ?? ""}
-                  onChange={(e) => setField(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  rows={3}
-                  className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
-              ) : (
-                <input
-                  value={values[field.key] ?? ""}
-                  onChange={(e) => setField(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
-              )}
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Full Name</span>
+            <input
+              value={values.name}
+              onChange={(e) => setField("name", e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Email</span>
+            <input
+              value={values.email}
+              onChange={(e) => setField("email", e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="col-span-2 block">
+            <span className="block text-xs font-medium text-gray-500">Address</span>
+            <textarea
+              value={values.address}
+              onChange={(e) => setField("address", e.target.value)}
+              placeholder={"Address line 1\nAddress line 2\nAddress line 3"}
+              rows={3}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">Date</span>
+            <input
+              value={values.date}
+              onChange={(e) => setField("date", e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-gray-500">TIN</span>
+            <input
+              value={values.tin}
+              onChange={(e) => setField("tin", e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
+          </label>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-medium text-gray-500">Mobile Carrier</p>
+          <div className="mt-1 flex gap-4 text-sm text-gray-700">
+            <label className="flex items-center gap-1.5">
+              <input type="radio" checked={carrier === "mobitel"} onChange={() => setCarrier("mobitel")} />
+              Mobitel
             </label>
-          ))}
+            <label className="flex items-center gap-1.5">
+              <input type="radio" checked={carrier === "dialog"} onChange={() => setCarrier("dialog")} />
+              Dialog
+            </label>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">Mobile Number</span>
+              <input
+                value={values.mobile}
+                onChange={(e) => setField("mobile", e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
+            {carrier === "mobitel" && (
+              <label className="block">
+                <span className="block text-xs font-medium text-gray-500">
+                  Your Regional Telecom Office Address <span className="font-normal text-gray-400">(optional)</span>
+                </span>
+                <input
+                  value={values.officeAddress}
+                  onChange={(e) => setField("officeAddress", e.target.value)}
+                  placeholder="Fill in if known — otherwise leave blank and add it by hand"
+                  className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+              </label>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 print:border-0 print:p-0">
-        <LetterBody templateId={templateId} values={values} />
+      <div>
+        <p className="mb-2 text-xs font-semibold text-gray-400 uppercase print:hidden">
+          {carrier === "dialog" ? "Dialog" : "Mobitel"} Mobile Network Stay Confirmation Request
+        </p>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 print:break-after-page print:border-0 print:p-0">
+          <MobileConfirmationLetter carrier={carrier} values={values} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold text-gray-400 uppercase print:hidden">
+          IRD Letter of Personal Use
+        </p>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 print:border-0 print:p-0">
+          <PersonalUseLetter values={values} />
+        </div>
       </div>
     </div>
   );
