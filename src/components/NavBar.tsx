@@ -5,8 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/", label: "Utilities" },
+  { href: "/utilities", label: "Utilities" },
   { href: "/resources", label: "Resources" },
   { href: "/settings", label: "Settings" },
 ];
@@ -27,10 +26,10 @@ export default function NavBar() {
       <div className="h-1 bg-red-700" />
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-gray-900">
             <span className="h-2.5 w-2.5 rounded-full bg-red-700" />
             JP ImportTools
-          </span>
+          </Link>
           <nav className="flex gap-4">
             {LINKS.map((link) => (
               <Link
