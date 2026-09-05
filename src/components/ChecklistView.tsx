@@ -106,27 +106,18 @@ export default function ChecklistView({
         </div>
         {item.note && <p className="ml-6 text-xs text-gray-400">{item.note}</p>}
         {item.links && (
-          <div className="ml-6 mt-0.5 space-y-0.5">
-            <div className="flex flex-wrap gap-3 print:hidden">
-              {item.links.map((link) => (
-                <a
-                  key={link.url}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-red-700 hover:underline"
-                >
-                  {link.label} ↗
-                </a>
-              ))}
-            </div>
-            <div className="hidden print:block">
-              {item.links.map((link) => (
-                <p key={link.url} className="text-[10px] break-all text-gray-500">
-                  {link.label}: {link.url}
-                </p>
-              ))}
-            </div>
+          <div className="ml-6 mt-0.5 flex flex-wrap gap-3">
+            {item.links.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-red-700 hover:underline"
+              >
+                {link.label} ↗
+              </a>
+            ))}
           </div>
         )}
       </div>
@@ -146,7 +137,10 @@ export default function ChecklistView({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              document.title = title;
+              window.print();
+            }}
             className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
           >
             Download PDF

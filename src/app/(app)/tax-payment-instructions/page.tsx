@@ -23,7 +23,10 @@ export default function TaxPaymentInstructionsPage() {
         </div>
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={() => {
+            document.title = "Customs Tax Payment Instructions";
+            window.print();
+          }}
           className="flex-none rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 print:hidden"
         >
           Download PDF

@@ -495,7 +495,10 @@ export default function QuotationPage() {
             <p className="text-sm font-medium text-gray-900">Quotation for {vehicleName}</p>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => {
+                document.title = `Quotation - ${vehicleName || "Vehicle"}`;
+                window.print();
+              }}
               className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 print:hidden"
             >
               Download PDF
