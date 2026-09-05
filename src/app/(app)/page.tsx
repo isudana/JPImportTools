@@ -32,7 +32,7 @@ const LIFECYCLE: LifecyclePhase[] = [
   },
   {
     phase: "Clearance",
-    utilityHrefs: ["/clearance-checklist", "/tax-payment-instructions"],
+    utilityHrefs: ["/clearance-checklist", "/letter-generator", "/tax-payment-instructions"],
     resourceTitles: ["Sri Lanka Customs Account Creation"],
   },
   {

@@ -22,6 +22,7 @@ const SECTIONS: ChecklistSection[] = [
             label: "Dialog",
             url: "https://docs.google.com/document/d/14gIc_SHojJMAVfSniH-i4iHzTeFOLghp37zTxcWGnyA/edit?usp=sharing",
           },
+          { label: "Generate ✏️", url: "/letter-generator?template=mobitel" },
         ],
       },
       {
@@ -53,6 +54,7 @@ const SECTIONS: ChecklistSection[] = [
             label: "Template",
             url: "https://docs.google.com/document/d/102sigDokij1tO7FX5gMgsjtJZ01rXbIa9SR6wv4wLUQ/edit?usp=drive_link",
           },
+          { label: "Generate ✏️", url: "/letter-generator?template=personal-use" },
         ],
       },
       { id: "vat-tin", label: "TIN" },
