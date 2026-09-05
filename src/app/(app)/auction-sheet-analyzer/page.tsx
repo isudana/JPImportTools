@@ -8,12 +8,30 @@ import { resizeImage } from "@/lib/resizeImage";
 
 type Annotation = { x: number; y: number; translation: string };
 
+type VehicleInfo = {
+  model: string;
+  grade: string;
+  modelCode: string;
+  yom: string;
+  displacement: string;
+  drivetrain: "2WD" | "4WD" | "Unknown";
+  mileage: string;
+};
+
+type Grades = { overallGrade: string; interiorGrade: string; marksSummary: string };
+
+type Highlights = { inspectorReport: string; notes: string; salesPoints: string };
+
 type AnalyzeResult = {
   explanation: string;
   chassisCode: string | null;
   serialNumber: number | null;
   yom: YomResult | null;
   annotations: Annotation[];
+  vehicleInfo: VehicleInfo;
+  grades: Grades;
+  availableOptions: string[];
+  highlights: Highlights;
 };
 
 export default function AuctionSheetAnalyzerPage() {
@@ -152,6 +170,85 @@ export default function AuctionSheetAnalyzerPage() {
 
       {result && (
         <>
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">Vehicle Info</h2>
+            <dl className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-600">
+              <dt className="text-gray-400">Model</dt>
+              <dd>{result.vehicleInfo.model || "—"}</dd>
+              <dt className="text-gray-400">Grade</dt>
+              <dd>{result.vehicleInfo.grade || "—"}</dd>
+              <dt className="text-gray-400">Chassis</dt>
+              <dd>{result.chassisCode || "—"}</dd>
+              <dt className="text-gray-400">Model Code</dt>
+              <dd>{result.vehicleInfo.modelCode || "—"}</dd>
+              <dt className="text-gray-400">YOM</dt>
+              <dd>{result.vehicleInfo.yom || "—"}</dd>
+              <dt className="text-gray-400">Displacement</dt>
+              <dd>{result.vehicleInfo.displacement || "—"}</dd>
+              <dt className="text-gray-400">Mileage</dt>
+              <dd>{result.vehicleInfo.mileage || "—"}</dd>
+              <dt className="text-gray-400">Drivetrain</dt>
+              <dd>
+                {result.vehicleInfo.drivetrain === "4WD" ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 font-bold text-red-700">
+                    ⚠️ 4WD
+                  </span>
+                ) : (
+                  result.vehicleInfo.drivetrain
+                )}
+              </dd>
+            </dl>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">Grades & Marks</h2>
+            <dl className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-600">
+              <dt className="text-gray-400">Overall Grade</dt>
+              <dd className="font-medium text-gray-900">{result.grades.overallGrade || "—"}</dd>
+              <dt className="text-gray-400">Interior Grade</dt>
+              <dd>{result.grades.interiorGrade || "—"}</dd>
+            </dl>
+            {result.grades.marksSummary && (
+              <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{result.grades.marksSummary}</p>
+            )}
+          </div>
+
+          {result.availableOptions.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-gray-900">Available Options</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {result.availableOptions.map((o, i) => (
+                  <span key={i} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    {o}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(result.highlights.inspectorReport || result.highlights.notes || result.highlights.salesPoints) && (
+            <div className="space-y-3">
+              {result.highlights.inspectorReport && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <h2 className="text-xs font-semibold tracking-wide text-amber-700 uppercase">Inspector&apos;s Report</h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{result.highlights.inspectorReport}</p>
+                </div>
+              )}
+              {result.highlights.notes && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <h2 className="text-xs font-semibold tracking-wide text-blue-700 uppercase">Notes</h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{result.highlights.notes}</p>
+                </div>
+              )}
+              {result.highlights.salesPoints && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <h2 className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Sales Points</h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{result.highlights.salesPoints}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {previewUrl && result.annotations.length > 0 && (
             <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-4">
               <div className="flex items-center justify-between">
@@ -249,7 +346,7 @@ export default function AuctionSheetAnalyzerPage() {
           )}
 
           <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-900">Explanation</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Summary & Red Flags</h2>
             <div className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{result.explanation}</div>
           </div>
         </>
