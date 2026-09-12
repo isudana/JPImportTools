@@ -9,8 +9,9 @@ import { evaluateYom, type YomResult } from "@/lib/yom";
 import { matchGradeSearchSites } from "@/lib/gradeSearchSites";
 import { calculateTax, vehicleFuelCategory } from "@/lib/taxRates";
 import { resizeImage } from "@/lib/resizeImage";
-import { UTILITIES } from "@/app/(app)/utilities/page";
+import { UTILITIES } from "@/lib/utilities";
 import { RESOURCES } from "@/app/(app)/resources/page";
+import { useRole } from "@/components/RoleProvider";
 
 type LifecyclePhase = { phase: string; utilityHrefs: string[]; resourceTitles: string[] };
 
@@ -57,6 +58,7 @@ function fmtLkr(n: number): string {
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const role = useRole();
 
   // Widget 2: rates
   const [customsRate, setCustomsRate] = useState<RateResponse | null>(null);
@@ -201,7 +203,7 @@ export default function DashboardPage() {
         {LIFECYCLE.map((phase) => {
           const utilities = phase.utilityHrefs
             .map((href) => UTILITIES.find((u) => u.href === href))
-            .filter((u): u is (typeof UTILITIES)[number] => !!u);
+            .filter((u): u is (typeof UTILITIES)[number] => !!u && (!u.adminOnly || role === "ADMIN"));
           const resources = phase.resourceTitles
             .map((title) => RESOURCES.find((r) => r.title === title))
             .filter((r): r is (typeof RESOURCES)[number] => !!r);
@@ -363,40 +365,42 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="border-t border-gray-100 pt-4">
-          <label className="block">
-            <span className="block text-xs font-medium text-gray-500">
-              Auction Sheet Photo <span className="font-normal text-gray-400">(optional)</span>
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-red-700 hover:file:bg-red-100"
-            />
-          </label>
-          {previewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Auction sheet preview" className="mt-2 max-h-60 rounded-md border border-gray-200" />
-          )}
-          {pendingImage && (
-            <button
-              type="button"
-              onClick={handleAnalyzeAuctionSheet}
-              disabled={analyzing}
-              className="mt-2 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
-            >
-              {analyzing ? "Analyzing…" : "Analyze Auction Sheet"}
-            </button>
-          )}
-          {analysisError && <p className="mt-2 text-sm text-red-600">{analysisError}</p>}
-          {analysisResult && (
-            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-gray-500">Explanation</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{analysisResult.explanation}</p>
-            </div>
-          )}
-        </div>
+        {role === "ADMIN" && (
+          <div className="border-t border-gray-100 pt-4">
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">
+                Auction Sheet Photo <span className="font-normal text-gray-400">(optional)</span>
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-red-700 hover:file:bg-red-100"
+              />
+            </label>
+            {previewUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="Auction sheet preview" className="mt-2 max-h-60 rounded-md border border-gray-200" />
+            )}
+            {pendingImage && (
+              <button
+                type="button"
+                onClick={handleAnalyzeAuctionSheet}
+                disabled={analyzing}
+                className="mt-2 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
+              >
+                {analyzing ? "Analyzing…" : "Analyze Auction Sheet"}
+              </button>
+            )}
+            {analysisError && <p className="mt-2 text-sm text-red-600">{analysisError}</p>}
+            {analysisResult && (
+              <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs font-semibold text-gray-500">Explanation</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{analysisResult.explanation}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="border-t border-gray-100 pt-4">
           <label className="block">

@@ -39,6 +39,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { data: profile } = await supabase.from("profiles").select("enabled").eq("id", user.id).single();
+  if (!profile?.enabled) {
+    return NextResponse.json({ error: "Your account is pending admin approval." }, { status: 403 });
+  }
+
   const force = new URL(request.url).searchParams.get("force") === "1";
 
   const { data: cached } = await supabase

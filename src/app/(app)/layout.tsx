@@ -1,9 +1,12 @@
+import { redirect } from "next/navigation";
 import NavBar from "@/components/NavBar";
 import { RoleProvider } from "@/components/RoleProvider";
 import { getCurrentUserProfile } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentUserProfile();
+
+  if (profile && !profile.enabled) redirect("/pending-approval");
 
   return (
     <RoleProvider role={profile?.role ?? null}>
