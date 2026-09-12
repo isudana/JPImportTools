@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail } from "@/lib/email";
 import type { UserRole } from "@/lib/types";
+
+const APP_URL = "https://jp-import-tools.vercel.app/";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -83,6 +86,51 @@ export async function DELETE(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase.from("profiles").select("role, enabled").eq("id", user.id).single();
+
+  if (!profile?.enabled || profile.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { userId: targetId, enabled } = (await request.json()) as { userId?: string; enabled?: boolean };
+
+  if (!targetId || typeof enabled !== "boolean") {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const { data: target, error } = await supabase
+    .from("profiles")
+    .update({ enabled })
+    .eq("id", targetId)
+    .select("email, display_name")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  // Only notify on enabling an account — disabling one needs no email.
+  if (enabled && target?.email) {
+    await sendEmail({
+      to: [target.email],
+      subject: "Your JP ImportTools account is now active",
+      text: `Hi ${target.display_name || target.email},\n\nAn admin has enabled your account. You can now sign in and start using JP ImportTools:\n\n${APP_URL}\n\nThanks!`,
+    });
   }
 
   return NextResponse.json({ ok: true });

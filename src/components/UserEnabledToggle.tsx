@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function UserEnabledToggle({ userId, enabled }: { userId: string; enabled: boolean }) {
   const router = useRouter();
-  const supabase = createClient();
   const [value, setValue] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -16,12 +14,17 @@ export default function UserEnabledToggle({ userId, enabled }: { userId: string;
     setSaving(true);
     setError(null);
 
-    const { error } = await supabase.from("profiles").update({ enabled: next }).eq("id", userId);
+    const res = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, enabled: next }),
+    });
 
     setSaving(false);
 
-    if (error) {
-      setError(error.message);
+    if (!res.ok) {
+      const body = await res.json();
+      setError(body.error ?? "Failed to update user");
       return;
     }
 
