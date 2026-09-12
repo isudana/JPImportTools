@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRole } from "@/components/RoleProvider";
 import AddUserForm from "@/components/AddUserForm";
 import UserRoleSelect from "@/components/UserRoleSelect";
+import UserEnabledToggle from "@/components/UserEnabledToggle";
 import DeleteUserButton from "@/components/DeleteUserButton";
 import type { AppSettings, Profile, VehicleReferencePrice } from "@/lib/types";
 
@@ -557,17 +558,21 @@ export default function SettingsPage() {
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Email</th>
                   <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Joined</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b border-gray-100">
+                  <tr key={u.id} className={`border-b border-gray-100 ${u.enabled ? "" : "bg-amber-50/50"}`}>
                     <td className="px-3 py-2 font-medium text-gray-900">{u.display_name || "—"}</td>
                     <td className="px-3 py-2 text-gray-600">{u.email || "—"}</td>
                     <td className="px-3 py-2">
                       <UserRoleSelect userId={u.id} role={u.role} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <UserEnabledToggle userId={u.id} enabled={u.enabled} />
                     </td>
                     <td className="px-3 py-2 text-gray-500">{formatDate(u.created_at)}</td>
                     <td className="whitespace-nowrap px-3 py-2">
@@ -581,7 +586,7 @@ export default function SettingsPage() {
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={6} className="px-3 py-6 text-center text-sm text-gray-500">
                       No users found.
                     </td>
                   </tr>

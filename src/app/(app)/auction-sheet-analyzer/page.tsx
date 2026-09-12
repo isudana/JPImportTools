@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { evaluateYom, type YomResult } from "@/lib/yom";
 import type { ChassisYearRange } from "@/lib/types";
 import { resizeImage } from "@/lib/resizeImage";
+import { useRole } from "@/components/RoleProvider";
 
 type Annotation = { x: number; y: number; translation: string };
 
@@ -35,6 +37,7 @@ type AnalyzeResult = {
 };
 
 export default function AuctionSheetAnalyzerPage() {
+  const role = useRole();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pending, setPending] = useState<{ base64: string; mimeType: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,6 +131,27 @@ export default function AuctionSheetAnalyzerPage() {
     }
 
     setYomResult(evaluateYom((data ?? []) as ChassisYearRange[], serial));
+  }
+
+  if (role !== "ADMIN") {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <div className="border-l-4 border-red-700 pl-3">
+          <h1 className="text-lg font-semibold text-gray-900">Auction Sheet Analyzer</h1>
+        </div>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-800">Admins only, for the moment.</p>
+          <p className="mt-1 text-sm text-amber-700">
+            This tool calls a paid third-party API, so it&apos;s limited to admin accounts for now. Head back
+            to the{" "}
+            <Link href="/" className="font-medium underline">
+              Dashboard
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

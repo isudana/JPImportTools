@@ -14,6 +14,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { data: profile } = await supabase.from("profiles").select("enabled").eq("id", user.id).single();
+  if (!profile?.enabled) {
+    return NextResponse.json({ error: "Your account is pending admin approval." }, { status: 403 });
+  }
+
   let sailings;
   try {
     sailings = await fetchRoroSchedule();

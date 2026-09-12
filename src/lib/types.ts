@@ -43,5 +43,6 @@ export type Profile = {
   email: string | null;
   display_name: string | null;
   role: UserRole;
+  enabled: boolean;
   created_at: string;
 };

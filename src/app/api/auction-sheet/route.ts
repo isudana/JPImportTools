@@ -171,6 +171,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { data: profile } = await supabase.from("profiles").select("role, enabled").eq("id", user.id).single();
+
+  if (!profile?.enabled) {
+    return NextResponse.json({ error: "Your account is pending admin approval." }, { status: 403 });
+  }
+  if (profile.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "The Auction Sheet Analyzer is limited to admins for the moment." },
+      { status: 403 },
+    );
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

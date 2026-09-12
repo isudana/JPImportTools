@@ -13,9 +13,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role, enabled").eq("id", user.id).single();
 
-  if (profile?.role !== "ADMIN") {
+  if (!profile?.enabled || profile.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { display_name: displayName || email, role },
+    user_metadata: { display_name: displayName || email, role, enabled: "true" },
   });
 
   if (error) {
@@ -55,9 +55,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role, enabled").eq("id", user.id).single();
 
-  if (profile?.role !== "ADMIN") {
+  if (!profile?.enabled || profile.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

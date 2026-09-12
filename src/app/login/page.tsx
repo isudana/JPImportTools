@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -77,6 +78,13 @@ export default function LoginPage() {
               {loading ? "Please wait…" : "Sign in"}
             </button>
           </form>
+
+          <p className="mt-4 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-medium text-red-700 hover:underline">
+              Request access
+            </Link>
+          </p>
         </div>
       </div>
     </div>

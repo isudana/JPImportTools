@@ -1842,12 +1842,18 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
+-- Added for self-registration/admin-approval: existing accounts (created by an admin or
+-- pre-dating this migration) default to enabled so nobody already trusted gets locked out
+-- retroactively. New self-registered accounts are set to false explicitly (see the trigger
+-- below) and need an admin to flip this on before they can use the app.
+alter table profiles add column if not exists enabled boolean not null default true;
+
 -- Backfill: the trigger below only fires for auth.users rows inserted from now on, so any
 -- account created before this migration ran (e.g. the account you're reading this with) has
 -- no profile yet. Give every such account a profile, promoted to ADMIN — safe to re-run, since
 -- it only inserts for users that don't already have one.
-insert into public.profiles (id, email, display_name, role)
-select u.id, u.email, coalesce(u.raw_user_meta_data ->> 'display_name', u.email), 'ADMIN'::user_role_t
+insert into public.profiles (id, email, display_name, role, enabled)
+select u.id, u.email, coalesce(u.raw_user_meta_data ->> 'display_name', u.email), 'ADMIN'::user_role_t, true
 from auth.users u
 where not exists (select 1 from public.profiles p where p.id = u.id);
 
@@ -1855,10 +1861,15 @@ where not exists (select 1 from public.profiles p where p.id = u.id);
 -- the Supabase dashboard), so nobody is locked out of Settings/user management on a fresh
 -- project. Every account after that defaults to USER unless an admin requests otherwise via
 -- the /api/users route (which sets raw_user_meta_data.role and is itself admin-gated).
+--
+-- Similarly, the first account is always enabled (there's no admin yet to approve them), and
+-- admin-created accounts (/api/users) are enabled immediately — an admin creating the account
+-- IS the approval. Self-registered accounts (/api/register, publicly reachable, no metadata
+-- passed) default to disabled until an admin enables them in Settings.
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, display_name, role)
+  insert into public.profiles (id, email, display_name, role, enabled)
   values (
     new.id,
     new.email,
@@ -1866,6 +1877,10 @@ begin
     case
       when not exists (select 1 from public.profiles) then 'ADMIN'::public.user_role_t
       else coalesce((new.raw_user_meta_data ->> 'role')::public.user_role_t, 'USER'::public.user_role_t)
+    end,
+    case
+      when not exists (select 1 from public.profiles) then true
+      else coalesce((new.raw_user_meta_data ->> 'enabled')::boolean, false)
     end
   );
   return new;
