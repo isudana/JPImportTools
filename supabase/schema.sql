@@ -2124,3 +2124,20 @@ alter table customs_exchange_rate_cache enable row level security;
 create policy "read customs_exchange_rate_cache" on customs_exchange_rate_cache for select using (auth.role() = 'authenticated');
 create policy "update customs_exchange_rate_cache" on customs_exchange_rate_cache for update using (auth.role() = 'authenticated');
 
+
+-- BOC JPY exchange rate cache: refreshed at most once per day (Asia/Colombo). jpy_rate is BOC's
+-- Telegraphic Transfer selling rate, used as the live LC rate (the TT rate is derived from it).
+drop table if exists boc_exchange_rate_cache cascade;
+
+create table boc_exchange_rate_cache (
+  id int primary key default 1,
+  jpy_rate numeric,
+  as_at text,
+  fetched_at timestamptz,
+  constraint boc_exchange_rate_cache_singleton check (id = 1)
+);
+insert into boc_exchange_rate_cache (id) values (1);
+
+alter table boc_exchange_rate_cache enable row level security;
+create policy "read boc_exchange_rate_cache" on boc_exchange_rate_cache for select using (auth.role() = 'authenticated');
+create policy "update boc_exchange_rate_cache" on boc_exchange_rate_cache for update using (auth.role() = 'authenticated');

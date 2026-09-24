@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AppSettings, VehicleReferencePrice } from "@/lib/types";
 import { depreciatedFob } from "@/lib/vehiclePricing";
+import { TT_RATE_MARGIN } from "@/lib/bocExchangeRate";
 import { calculateTax, vehicleFuelCategory, type FuelCategory, type TaxBreakdown } from "@/lib/taxRates";
 
 const LKR = new Intl.NumberFormat("en-LK", { maximumFractionDigits: 0 });
@@ -61,6 +62,9 @@ export default function QuotationPage() {
   const [customsRate, setCustomsRate] = useState("");
   const [liveRateNote, setLiveRateNote] = useState<string | null>(null);
   const customsRateEdited = useRef(false);
+  const [liveLcRateNote, setLiveLcRateNote] = useState<string | null>(null);
+  const lcRateEdited = useRef(false);
+  const ttRateEdited = useRef(false);
 
   const [matchedVehicle, setMatchedVehicle] = useState<VehicleReferencePrice | null>(null);
 
@@ -93,8 +97,9 @@ export default function QuotationPage() {
       .then(({ data }) => {
         const settings = data as AppSettings | null;
         if (!settings) return;
-        setLcRate(String(settings.default_lc_rate));
-        setTtRate(String(settings.default_tt_rate));
+        // Only fallbacks: the live BOC rates below take precedence once they arrive.
+        setLcRate((current) => current || String(settings.default_lc_rate));
+        setTtRate((current) => current || String(settings.default_tt_rate));
         // Only a fallback: the live Customs rate below takes precedence once it arrives.
         setCustomsRate((current) => current || String(settings.default_customs_rate));
       });
@@ -109,6 +114,20 @@ export default function QuotationPage() {
         setLiveRateNote(`Auto-filled from the live Customs rate (eff. ${body.effectiveFrom} – ${body.effectiveTo}).`);
         if (customsRateEdited.current) return;
         setCustomsRate(String(body.jpyRate));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Pre-fill LC Rate with BOC's live JPY telegraphic transfer selling rate, and TT Rate with that plus a
+  // fixed margin, unless the user has already edited them.
+  useEffect(() => {
+    fetch("/api/boc-exchange-rate")
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok || typeof body.jpyRate !== "number") return;
+        setLiveLcRateNote(`Auto-filled from BOC's TT selling rate${body.asAt ? ` (as at ${body.asAt})` : ""}.`);
+        if (!lcRateEdited.current) setLcRate(String(body.jpyRate));
+        if (!ttRateEdited.current && typeof body.ttRate === "number") setTtRate(String(body.ttRate));
       })
       .catch(() => {});
   }, []);
@@ -435,17 +454,29 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">LC JPY to LKR Rate</span>
               <input
                 value={lcRate}
-                onChange={(e) => setLcRate(e.target.value)}
+                onChange={(e) => {
+                  lcRateEdited.current = true;
+                  setLcRate(e.target.value);
+                }}
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
+              {liveLcRateNote && <span className="mt-1 block text-xs text-emerald-700/60">{liveLcRateNote}</span>}
             </label>
             <label className="block">
               <span className="block text-xs font-medium text-gray-500">TT JPY to LKR Rate</span>
               <input
                 value={ttRate}
-                onChange={(e) => setTtRate(e.target.value)}
+                onChange={(e) => {
+                  ttRateEdited.current = true;
+                  setTtRate(e.target.value);
+                }}
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
+              {liveLcRateNote && (
+                <span className="mt-1 block text-xs text-emerald-700/60">
+                  BOC rate + {TT_RATE_MARGIN.toFixed(2)}.
+                </span>
+              )}
             </label>
             <label className="block">
               <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
@@ -522,7 +553,8 @@ export default function QuotationPage() {
             </div>
           )}
           <p className="text-xs text-emerald-700/70">
-            LC and TT Rates default from Settings; Customs Rate defaults to the live Customs rate. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
+            LC Rate defaults to BOC&apos;s live JPY rate, TT Rate to that plus {TT_RATE_MARGIN.toFixed(2)}, and Customs
+            Rate to the live Customs rate. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
             Shipping &amp; Insurance) at the Customs rate — except when LC Value exceeds that Yellow Book CIF, where it
             uses LC Value at the Customs rate instead. Still editable if the actual duty differs.
           </p>
