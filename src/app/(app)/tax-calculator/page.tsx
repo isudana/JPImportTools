@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { VehicleReferencePrice } from "@/lib/types";
 import { calculateTaxLineItems, type FuelCategory, type TaxLineItem } from "@/lib/taxRates";
@@ -20,6 +20,8 @@ export default function TaxCalculatorPage() {
   const [buyingPrice, setBuyingPrice] = useState("");
   const [shippingInsurance, setShippingInsurance] = useState("");
   const [rate, setRate] = useState("");
+  const [liveRateNote, setLiveRateNote] = useState<string | null>(null);
+  const rateEdited = useRef(false);
 
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<{
@@ -37,6 +39,19 @@ export default function TaxCalculatorPage() {
       .order("name")
       .then(({ data }) => setVehicles((data ?? []) as VehicleReferencePrice[]));
   }, [supabase]);
+
+  // Pre-fill the rate with the live Customs JPY rate, unless the user has already edited it.
+  useEffect(() => {
+    fetch("/api/customs-exchange-rate")
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok || typeof body.jpyRate !== "number") return;
+        setLiveRateNote(`Auto-filled from the live Customs rate (eff. ${body.effectiveFrom} – ${body.effectiveTo}).`);
+        if (rateEdited.current) return;
+        setRate(String(body.jpyRate));
+      })
+      .catch(() => {});
+  }, []);
 
   function handleVehicleNameChange(value: string) {
     setVehicleName(value);
@@ -187,10 +202,14 @@ export default function TaxCalculatorPage() {
           <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
           <input
             value={rate}
-            onChange={(e) => setRate(e.target.value)}
+            onChange={(e) => {
+              rateEdited.current = true;
+              setRate(e.target.value);
+            }}
             placeholder="e.g. 2.10"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
           />
+          {liveRateNote && <span className="mt-1 block text-xs text-gray-400">{liveRateNote}</span>}
         </label>
 
         <button
