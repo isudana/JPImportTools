@@ -29,8 +29,9 @@ export async function updateSession(request: NextRequest) {
   // /login and /register are pages a signed-out visitor needs to reach; /api/register is the
   // public endpoint /register's form posts to, so it must stay reachable without a session too —
   // otherwise this same "no user -> /login" redirect below intercepts the API call itself.
+  // /api/cron/* is called by the Supabase cron job, which has no session and checks CRON_SECRET itself.
   const isAuthPage = pathname === "/login" || pathname === "/register";
-  const isPublicApi = pathname === "/api/register";
+  const isPublicApi = pathname === "/api/register" || pathname.startsWith("/api/cron/");
 
   if (!user && !isAuthPage && !isPublicApi) {
     const url = request.nextUrl.clone();

@@ -2141,3 +2141,25 @@ insert into boc_exchange_rate_cache (id) values (1);
 alter table boc_exchange_rate_cache enable row level security;
 create policy "read boc_exchange_rate_cache" on boc_exchange_rate_cache for select using (auth.role() = 'authenticated');
 create policy "update boc_exchange_rate_cache" on boc_exchange_rate_cache for update using (auth.role() = 'authenticated');
+
+-- Daily JPY/LKR rate history for the Dashboard trend chart. CBSL rows are CBSL's indicative
+-- rate (the full last year is re-upserted from cbsl.gov.lk once a day); BOC rows are BOC's
+-- Telegraphic Transfer selling rate (our LC rate), one per day, recorded from the day this
+-- table was created onwards since BOC publishes no history. Filled by a daily Supabase pg_cron job
+-- (see README, "Daily rate refresh") and also whenever someone opens the app.
+-- Guarded like profiles: BOC history can't be re-downloaded, so re-running this file never drops it.
+create table if not exists exchange_rate_history (
+  source text not null check (source in ('CBSL', 'BOC')),
+  rate_date date not null,
+  jpy_rate numeric not null,
+  fetched_at timestamptz not null default now(),
+  primary key (source, rate_date)
+);
+
+alter table exchange_rate_history enable row level security;
+drop policy if exists "read exchange_rate_history" on exchange_rate_history;
+drop policy if exists "insert exchange_rate_history" on exchange_rate_history;
+drop policy if exists "update exchange_rate_history" on exchange_rate_history;
+create policy "read exchange_rate_history" on exchange_rate_history for select using (auth.role() = 'authenticated');
+create policy "insert exchange_rate_history" on exchange_rate_history for insert with check (auth.role() = 'authenticated');
+create policy "update exchange_rate_history" on exchange_rate_history for update using (auth.role() = 'authenticated');

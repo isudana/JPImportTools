@@ -13,6 +13,7 @@ import { resizeImage } from "@/lib/resizeImage";
 import { UTILITIES } from "@/lib/utilities";
 import { RESOURCES } from "@/app/(app)/resources/page";
 import { useRole } from "@/components/RoleProvider";
+import RateTrendChart, { type RatePoint } from "@/components/RateTrendChart";
 
 type LifecyclePhase = { phase: string; utilityHrefs: string[]; resourceTitles: string[] };
 
@@ -69,6 +70,8 @@ export default function DashboardPage() {
   const [bocRate, setBocRate] = useState<BocRateResponse | null>(null);
   const [bocLoading, setBocLoading] = useState(true);
   const [bocError, setBocError] = useState<string | null>(null);
+  const [rateHistory, setRateHistory] = useState<{ cbsl: RatePoint[]; boc: RatePoint[] } | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Widget 3: quick vehicle check
   const [chassisCode, setChassisCode] = useState("");
@@ -104,7 +107,17 @@ export default function DashboardPage() {
         setBocRate(body);
       })
       .catch((err) => setBocError(err instanceof Error ? err.message : "Something went wrong."))
-      .finally(() => setBocLoading(false));
+      .finally(() => {
+        setBocLoading(false);
+        // Loaded after the BOC rate so today's BOC point (recorded by that request) is included.
+        fetch("/api/rate-history")
+          .then(async (res) => {
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || "Something went wrong.");
+            setRateHistory(body);
+          })
+          .catch((err) => setHistoryError(err instanceof Error ? err.message : "Something went wrong."));
+      });
 
     supabase
       .from("vehicle_reference_prices")
@@ -285,6 +298,18 @@ export default function DashboardPage() {
             ) : null}
           </div>
         ))}
+      </div>
+
+      {/* LC rate trend */}
+      <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-gray-900">JPY to LKR Rate Trend</h2>
+        {historyError ? (
+          <p className="text-sm text-red-600">{historyError}</p>
+        ) : rateHistory ? (
+          <RateTrendChart cbsl={rateHistory.cbsl} boc={rateHistory.boc} />
+        ) : (
+          <p className="text-sm text-gray-400">Loading…</p>
+        )}
       </div>
 
       {/* Widget 3: quick vehicle check */}

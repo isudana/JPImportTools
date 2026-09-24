@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { fetchBocJpyRate, ttRateFromBoc } from "@/lib/bocExchangeRate";
-
-const TIMEZONE = "Asia/Colombo";
-
-function localDateString(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    date,
-  );
-}
+import { ttRateFromBoc } from "@/lib/bocExchangeRate";
+import { colomboDate, refreshBocRate } from "@/lib/rateHistory";
 
 type CacheRow = {
   jpy_rate: number | null;
@@ -49,22 +42,15 @@ export async function GET(request: Request) {
     !force &&
     cached?.jpy_rate != null &&
     !!cached.fetched_at &&
-    localDateString(new Date(cached.fetched_at)) === localDateString(new Date());
+    colomboDate(new Date(cached.fetched_at)) === colomboDate(new Date());
 
   if (cacheIsFresh && cached?.jpy_rate != null) {
     return NextResponse.json(fromCache({ ...cached, jpy_rate: Number(cached.jpy_rate) }));
   }
 
   try {
-    const fresh = await fetchBocJpyRate();
-    const fetchedAt = new Date().toISOString();
-
-    await supabase
-      .from("boc_exchange_rate_cache")
-      .update({ jpy_rate: fresh.jpyRate, as_at: fresh.asAt, fetched_at: fetchedAt })
-      .eq("id", 1);
-
-    return NextResponse.json({ ...fresh, ttRate: ttRateFromBoc(fresh.jpyRate), fetchedAt, cached: false });
+    const fresh = await refreshBocRate(supabase);
+    return NextResponse.json({ ...fresh, ttRate: ttRateFromBoc(fresh.jpyRate), cached: false });
   } catch (err) {
     // Live refresh failed — fall back to whatever's cached, even if stale, rather than a hard error.
     if (cached?.jpy_rate != null) {
