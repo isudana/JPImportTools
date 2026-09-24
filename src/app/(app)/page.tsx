@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import type { AppSettings, ChassisYearRange, VehicleReferencePrice } from "@/lib/types";
+import type { ChassisYearRange, VehicleReferencePrice } from "@/lib/types";
 import { evaluateYom, type YomResult } from "@/lib/yom";
 import { matchGradeSearchSites } from "@/lib/gradeSearchSites";
 import { calculateTax, vehicleFuelCategory } from "@/lib/taxRates";
+import { TT_RATE_MARGIN } from "@/lib/bocExchangeRate";
 import { resizeImage } from "@/lib/resizeImage";
 import { UTILITIES } from "@/lib/utilities";
 import { RESOURCES } from "@/app/(app)/resources/page";
@@ -44,6 +45,7 @@ const LIFECYCLE: LifecyclePhase[] = [
 ];
 
 type RateResponse = { jpyRate: number; effectiveFrom: string; effectiveTo: string };
+type BocRateResponse = { jpyRate: number; ttRate: number; asAt: string | null };
 
 type AuctionSheetResult = {
   explanation: string;
@@ -64,7 +66,9 @@ export default function DashboardPage() {
   const [customsRate, setCustomsRate] = useState<RateResponse | null>(null);
   const [ratesLoading, setRatesLoading] = useState(true);
   const [ratesError, setRatesError] = useState<string | null>(null);
-  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [bocRate, setBocRate] = useState<BocRateResponse | null>(null);
+  const [bocLoading, setBocLoading] = useState(true);
+  const [bocError, setBocError] = useState<string | null>(null);
 
   // Widget 3: quick vehicle check
   const [chassisCode, setChassisCode] = useState("");
@@ -93,12 +97,14 @@ export default function DashboardPage() {
       .catch((err) => setRatesError(err instanceof Error ? err.message : "Something went wrong."))
       .finally(() => setRatesLoading(false));
 
-    supabase
-      .from("app_settings")
-      .select("*")
-      .eq("id", 1)
-      .single()
-      .then(({ data }) => setAppSettings((data as AppSettings) ?? null));
+    fetch("/api/boc-exchange-rate")
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || "Something went wrong.");
+        setBocRate(body);
+      })
+      .catch((err) => setBocError(err instanceof Error ? err.message : "Something went wrong."))
+      .finally(() => setBocLoading(false));
 
     supabase
       .from("vehicle_reference_prices")
@@ -261,30 +267,24 @@ export default function DashboardPage() {
             </>
           ) : null}
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
-          <p className="text-xs font-medium text-gray-400">Default LC Rate</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {appSettings ? appSettings.default_lc_rate.toFixed(2) : "…"}
-          </p>
-          <p className="mt-1 text-xs text-gray-400">
-            As configured in{" "}
-            <Link href="/settings" className="text-red-700 hover:underline">
-              Settings
-            </Link>
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
-          <p className="text-xs font-medium text-gray-400">Default TT Rate</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {appSettings ? appSettings.default_tt_rate.toFixed(2) : "…"}
-          </p>
-          <p className="mt-1 text-xs text-gray-400">
-            As configured in{" "}
-            <Link href="/settings" className="text-red-700 hover:underline">
-              Settings
-            </Link>
-          </p>
-        </div>
+        {[
+          { label: "LC Rate (BOC JPY), live", value: bocRate?.jpyRate, note: bocRate?.asAt ? `As at ${bocRate.asAt}` : null },
+          { label: "TT Rate, live", value: bocRate?.ttRate, note: `BOC rate + ${TT_RATE_MARGIN.toFixed(2)}` },
+        ].map((tile) => (
+          <div key={tile.label} className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+            <p className="text-xs font-medium text-gray-400">{tile.label}</p>
+            {bocLoading ? (
+              <p className="mt-2 text-sm text-gray-400">Loading…</p>
+            ) : bocError ? (
+              <p className="mt-2 text-sm text-red-600">{bocError}</p>
+            ) : tile.value != null ? (
+              <>
+                <p className="mt-1 text-2xl font-bold text-red-700">Rs. {tile.value.toFixed(4)}</p>
+                {tile.note && <p className="mt-1 text-xs text-gray-400">{tile.note}</p>}
+              </>
+            ) : null}
+          </div>
+        ))}
       </div>
 
       {/* Widget 3: quick vehicle check */}
