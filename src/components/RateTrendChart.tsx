@@ -9,6 +9,7 @@ const CBSL_COLOR = "#2a78d6";
 const BOC_COLOR = "#eb6834";
 
 const RANGES = [
+  { key: "1W", days: 7 },
   { key: "1M", days: 31 },
   { key: "6M", days: 183 },
   { key: "1Y", days: 366 },
@@ -42,7 +43,7 @@ function linePath(points: { x: number; y: number }[]): string {
 export default function RateTrendChart({ cbsl, boc }: { cbsl: RatePoint[]; boc: RatePoint[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(640);
-  const [range, setRange] = useState<RangeKey>("1M");
+  const [range, setRange] = useState<RangeKey>("1W");
   const [hoverDate, setHoverDate] = useState<string | null>(null);
   const [showTable, setShowTable] = useState(false);
 
