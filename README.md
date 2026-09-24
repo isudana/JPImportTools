@@ -35,7 +35,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with a user you 
 Signing in (or opening the app at all — the root URL, and the "JP ImportTools" brand in the nav bar, both go here) lands on the **Dashboard**, an at-a-glance overview with three widgets. It's not a separate menu item — it's just what "/" shows.
 
 1. **Utilities & Resources by import stage** — Estimation, Selecting the Vehicle, Shipping, Clearance, and RMV Registration, each showing the relevant utilities and resource links. Pulls directly from the same `UTILITIES` and `RESOURCES` arrays used by the Utilities page and Resources page (exported from those files), grouped by stage — so there's one source of truth for each entry's title/icon/link.
-2. **Current rates** — the live Customs Exchange Rate (JPY) (see below), plus the default LC/TT rates as configured in Settings.
+2. **Current rates** — the live Customs Exchange Rate (JPY) (see below), the live LC rate (BOC's JPY Telegraphic Transfer selling rate, from [boc.lk/rates-tariff](https://www.boc.lk/rates-tariff)), and the TT rate (BOC rate + 0.05). Below them, a **JPY to LKR Rate Trend** chart (1M / 6M / 1Y) plots CBSL's daily indicative rate alongside the BOC LC rate. CBSL's last year comes from the data feed behind [CBSL's JPY/LKR chart](https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates/jpy-lkr-indicative-rate-chart); BOC publishes no history, so its line builds up one day at a time from when tracking started. Both are stored in the `exchange_rate_history` table and kept up to date by a daily Supabase cron job (see **Daily rate refresh** below).
 3. **Quick Vehicle Check** — enter a chassis code + serial number to get the YOM and a direct link to the matched manufacturer's grade search site (same logic as YOM Lookup); optionally upload an auction sheet photo to analyze it (same as Auction Sheet Analyzer, and its extracted chassis/serial/YOM overrides the manual entry if provided); then pick the matching Vehicle Model to see a tentative customs tax, computed from that model's Yellow Book CIF and today's live customs rate. This tentative figure ignores buying price, shipping, and the vehicle's own registration-age discount — it's a quick estimate, not a substitute for the full Tax Calculator or Quotation Generator.
 
 ## 5. Utilities
@@ -75,7 +75,36 @@ Every account has a role, `ADMIN` or `USER` (read-only), and an `enabled` flag, 
 - **Self-registration**: anyone can request access at `/register` (linked from the login page) without an invite. This creates the account via `/api/register` (public, no auth required) with role `USER` and **`enabled = false`** — they can't sign in yet. All current admins get an email (see `RESEND_API_KEY` above) linking to Settings → Users, where the new row is highlighted and shows a "Pending — click to enable" button. Until an admin clicks it, signing in redirects the user to a "pending approval" page instead of the app (enforced both there and server-side in every API route, so it holds even if someone bypasses the UI). Clicking that button (`PATCH /api/users`, admin-only) enables the account and emails the user directly, letting them know their account is active with a link to sign in.
 - `USER` accounts can use every utility except the Auction Sheet Analyzer (**admin-only for the moment**, since it calls a paid third-party API — enforced in `/api/auction-sheet` itself, not just hidden in the UI), but can't add/edit/delete vehicle reference prices, change the default exchange rates, or manage other users — Settings renders those sections read-only for them. This is enforced both in the UI and at the database level (Postgres RLS policies check `current_user_role() = 'ADMIN'`), so it holds even if someone bypasses the UI.
 
-## 7. Deploy so it's reachable from anywhere
+## 7. Daily rate refresh (Supabase cron)
+
+Rates are also refreshed whenever someone opens the Dashboard, but a daily [Supabase cron job](https://supabase.com/docs/guides/cron) makes sure there's a BOC rate for every day even when nobody does. It calls `/api/cron/refresh-rates`, which fetches BOC's live rate and CBSL's last year of rates and saves them to `exchange_rate_history`. That endpoint has no user session, so it's protected by a shared secret instead.
+
+1. Generate a long random secret (e.g. `openssl rand -hex 32`) and add it as `CRON_SECRET` in `.env.local` and in Vercel's environment variables, then redeploy.
+2. In Supabase, go to **Database → Extensions** and enable `pg_cron` and `pg_net`.
+3. In the **SQL Editor**, store your deployed app URL and the same secret in Vault, then schedule the job. It runs at 06:30 UTC (12:00 noon Sri Lanka time), after BOC and CBSL have published the day's rates:
+
+   ```sql
+   select vault.create_secret('https://your-app.vercel.app', 'app_url');
+   select vault.create_secret('<your CRON_SECRET>', 'cron_secret');
+
+   select cron.schedule(
+     'refresh-exchange-rates',
+     '30 6 * * *',
+     $$
+     select net.http_get(
+       url := (select decrypted_secret from vault.decrypted_secrets where name = 'app_url') || '/api/cron/refresh-rates',
+       headers := jsonb_build_object(
+         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+       ),
+       timeout_milliseconds := 60000
+     );
+     $$
+   );
+   ```
+
+4. Check it's working under **Integrations → Cron** (job run history), or with `select * from net._http_response order by created desc limit 5;` — a successful run returns status `200` with the BOC rate and the number of CBSL rows saved.
+
+## 8. Deploy so it's reachable from anywhere
 
 1. Push this project to a GitHub repository.
 2. Go to [vercel.com](https://vercel.com), sign up, and "Import Project" from that repo.
