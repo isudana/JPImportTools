@@ -15,33 +15,52 @@ import { RESOURCES } from "@/app/(app)/resources/page";
 import { useRole } from "@/components/RoleProvider";
 import RateTrendChart, { type RatePoint } from "@/components/RateTrendChart";
 
-type LifecyclePhase = { phase: string; utilityHrefs: string[]; resourceTitles: string[] };
+// Each stage's items render in the order listed: a utility (by href), a resource (by title), or an
+// info item that opens a popup instead of navigating anywhere.
+type LifecycleItem = { utility: string } | { resource: string } | { info: InfoItem };
+type InfoItem = { title: string; icon: string; message: string; phone?: string };
+type LifecyclePhase = { phase: string; items: LifecycleItem[] };
+
+const CUSTOMS_ACCOUNT_ACTIVATION: InfoItem = {
+  title: "Customs Account Activation",
+  icon: "📞",
+  message: "Call 011 214 3434 and get the TIN/VAT section to activate the account.",
+  phone: "+94112143434",
+};
 
 const LIFECYCLE: LifecyclePhase[] = [
   {
     phase: "Estimation",
-    utilityHrefs: ["/tax-calculator", "/quotation", "/customs-exchange-rate"],
-    resourceTitles: [],
+    items: [{ utility: "/tax-calculator" }, { utility: "/quotation" }, { utility: "/customs-exchange-rate" }],
   },
   {
     phase: "Selecting the Vehicle",
-    utilityHrefs: ["/grade-search", "/yom-lookup", "/auction-sheet-analyzer"],
-    resourceTitles: ["Japan Auction (JP Center)", "Vehicle History Check"],
+    items: [
+      { utility: "/grade-search" },
+      { utility: "/yom-lookup" },
+      { utility: "/auction-sheet-analyzer" },
+      { resource: "Japan Auction (JP Center)" },
+      { resource: "Vehicle History Check" },
+    ],
   },
   {
     phase: "Shipping",
-    utilityHrefs: ["/roro-schedule"],
-    resourceTitles: ["HIPG Berthing Schedule"],
+    items: [{ utility: "/roro-schedule" }, { resource: "HIPG Berthing Schedule" }],
   },
   {
     phase: "Clearance",
-    utilityHrefs: ["/clearance-checklist", "/letter-generator", "/tax-payment-instructions"],
-    resourceTitles: ["Sri Lanka Customs Account Creation", "Track My Custdeck"],
+    items: [
+      { utility: "/clearance-checklist" },
+      { utility: "/letter-generator" },
+      { resource: "Customs Account Creation" },
+      { info: CUSTOMS_ACCOUNT_ACTIVATION },
+      { utility: "/tax-payment-instructions" },
+      { resource: "Track My Custdeck" },
+    ],
   },
   {
     phase: "RMV Registration",
-    utilityHrefs: ["/rmv-registration-checklist"],
-    resourceTitles: ["RMV Current Registration Number"],
+    items: [{ utility: "/rmv-registration-checklist" }, { resource: "RMV Current Registration Number" }],
   },
 ];
 
@@ -62,6 +81,14 @@ function fmtLkr(n: number): string {
 export default function DashboardPage() {
   const supabase = createClient();
   const role = useRole();
+  const [infoItem, setInfoItem] = useState<InfoItem | null>(null);
+
+  useEffect(() => {
+    if (!infoItem) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setInfoItem(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [infoItem]);
 
   // Widget 2: rates
   const [customsRate, setCustomsRate] = useState<RateResponse | null>(null);
@@ -218,45 +245,59 @@ export default function DashboardPage() {
       </div>
 
       {/* Widget 1: Lifecycle-organized utilities & resources */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {LIFECYCLE.map((phase) => {
-          const utilities = phase.utilityHrefs
-            .map((href) => UTILITIES.find((u) => u.href === href))
-            .filter((u): u is (typeof UTILITIES)[number] => !!u && (!u.adminOnly || role === "ADMIN"));
-          const resources = phase.resourceTitles
-            .map((title) => RESOURCES.find((r) => r.title === title))
-            .filter((r): r is (typeof RESOURCES)[number] => !!r);
+          const rows = phase.items.flatMap((item) => {
+            if ("utility" in item) {
+              const u = UTILITIES.find((u) => u.href === item.utility);
+              if (!u || (u.adminOnly && role !== "ADMIN")) return [];
+              return [
+                <Link
+                  key={u.href}
+                  href={u.href}
+                  className="flex items-start gap-2 rounded-md px-1.5 py-1 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <span>{u.icon}</span>
+                  <span className="min-w-0 break-words">{u.title}</span>
+                </Link>,
+              ];
+            }
+            if ("resource" in item) {
+              const r = RESOURCES.find((r) => r.title === item.resource);
+              if (!r) return [];
+              return [
+                <a
+                  key={r.url}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 rounded-md px-1.5 py-1 text-sm text-gray-500 hover:bg-gray-50"
+                >
+                  <span>{r.icon}</span>
+                  <span className="min-w-0 break-words">{r.title}</span>
+                  <span className="text-xs text-gray-300">↗</span>
+                </a>,
+              ];
+            }
+            return [
+              <button
+                key={item.info.title}
+                type="button"
+                onClick={() => setInfoItem(item.info)}
+                className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <span>{item.info.icon}</span>
+                <span className="min-w-0 break-words">{item.info.title}</span>
+              </button>,
+            ];
+          });
 
           return (
             <div key={phase.phase} className="rounded-lg border border-gray-200 bg-white p-3">
               <h2 className="text-xs font-semibold tracking-wide text-red-700 uppercase">{phase.phase}</h2>
               <div className="mt-2 space-y-1.5">
-                {utilities.map((u) => (
-                  <Link
-                    key={u.href}
-                    href={u.href}
-                    className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <span>{u.icon}</span>
-                    <span className="truncate">{u.title}</span>
-                  </Link>
-                ))}
-                {resources.map((r) => (
-                  <a
-                    key={r.url}
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-500 hover:bg-gray-50"
-                  >
-                    <span>{r.icon}</span>
-                    <span className="truncate">{r.title}</span>
-                    <span className="text-xs text-gray-300">↗</span>
-                  </a>
-                ))}
-                {utilities.length === 0 && resources.length === 0 && (
-                  <p className="px-1.5 text-xs text-gray-300">Nothing yet</p>
-                )}
+                {rows}
+                {rows.length === 0 && <p className="px-1.5 text-xs text-gray-300">Nothing yet</p>}
               </div>
             </div>
           );
@@ -464,6 +505,40 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {infoItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setInfoItem(null)} />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="info-item-title"
+            className="relative w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-center justify-between">
+              <p id="info-item-title" className="text-sm font-semibold text-gray-900">
+                {infoItem.icon} {infoItem.title}
+              </p>
+              <button
+                type="button"
+                onClick={() => setInfoItem(null)}
+                className="text-sm text-gray-400 hover:text-gray-700"
+              >
+                Close ✕
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-gray-700">{infoItem.message}</p>
+            {infoItem.phone && (
+              <a
+                href={`tel:${infoItem.phone}`}
+                className="mt-4 inline-block rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800"
+              >
+                Call now
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
