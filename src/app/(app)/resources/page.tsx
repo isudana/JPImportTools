@@ -60,7 +60,7 @@ export const RESOURCES: ResourceEntry[] = [
     logo: "/logos/Vehicle_history_check.png",
   },
   {
-    title: "Sri Lanka Customs Account Creation",
+    title: "Customs Account Creation",
     url: "https://ereg.customs.gov.lk/registrations/login",
     description: "Register/log in for Sri Lanka Customs e-services",
     icon: "🪪",
