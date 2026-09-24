@@ -44,6 +44,7 @@ export default function QuotationPage() {
   const [fuel, setFuel] = useState<FuelCategory>("Petrol");
   const [capacity, setCapacity] = useState("");
   const [yom, setYom] = useState("");
+  const [yomWithinOneYear, setYomWithinOneYear] = useState(false);
   const [colour, setColour] = useState("");
   const [auctionGrade, setAuctionGrade] = useState("");
   const [buyingPrice, setBuyingPrice] = useState("");
@@ -58,6 +59,8 @@ export default function QuotationPage() {
   const [lcRate, setLcRate] = useState("");
   const [ttRate, setTtRate] = useState("");
   const [customsRate, setCustomsRate] = useState("");
+  const [liveRateNote, setLiveRateNote] = useState<string | null>(null);
+  const customsRateEdited = useRef(false);
 
   const [matchedVehicle, setMatchedVehicle] = useState<VehicleReferencePrice | null>(null);
 
@@ -92,9 +95,30 @@ export default function QuotationPage() {
         if (!settings) return;
         setLcRate(String(settings.default_lc_rate));
         setTtRate(String(settings.default_tt_rate));
-        setCustomsRate(String(settings.default_customs_rate));
+        // Only a fallback: the live Customs rate below takes precedence once it arrives.
+        setCustomsRate((current) => current || String(settings.default_customs_rate));
       });
   }, [supabase]);
+
+  // Pre-fill Customs Rate with the live Customs JPY rate, unless the user has already edited it.
+  useEffect(() => {
+    fetch("/api/customs-exchange-rate")
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok || typeof body.jpyRate !== "number") return;
+        setLiveRateNote(`Auto-filled from the live Customs rate (eff. ${body.effectiveFrom} – ${body.effectiveTo}).`);
+        if (customsRateEdited.current) return;
+        setCustomsRate(String(body.jpyRate));
+      })
+      .catch(() => {});
+  }, []);
+
+  // The live rate can arrive after a vehicle was selected, so re-derive Tax Amount when Customs Rate changes.
+  // Deliberately keyed on customsRate only: other inputs already call recomputeDerived from their handlers.
+  useEffect(() => {
+    recomputeDerived({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customsRate]);
 
   // Recomputes TT Value (Total Cost in Japan − LC Value) and, when a vehicle is matched, Tax Amount.
   // Tax Amount uses the vehicle's Yellow Book CIF normally, but when LC Value exceeds that Yellow
@@ -106,6 +130,7 @@ export default function QuotationPage() {
       exporterShippingHandling: string;
       importerShippingHandling: string;
       lcValue: string;
+      yomWithinOneYear: boolean;
       vehicle: VehicleReferencePrice | null;
     }>,
   ) {
@@ -122,8 +147,9 @@ export default function QuotationPage() {
     const rate = Number(customsRate);
     if (!Number.isFinite(rate) || rate <= 0) return;
 
+    const withinOneYear = overrides.yomWithinOneYear ?? yomWithinOneYear;
     const cifLkr = lc > vehicle.cif_jpy ? lc * rate : vehicle.cif_jpy * rate;
-    const tax = calculateTax(vehicleFuelCategory(vehicle), vehicle.capacity, cifLkr, false);
+    const tax = calculateTax(vehicleFuelCategory(vehicle), vehicle.capacity, cifLkr, withinOneYear);
     setTaxAmount(String(Math.round(tax.total * 100) / 100));
   }
 
@@ -202,7 +228,7 @@ export default function QuotationPage() {
           vehicleFuelCategory(matchedVehicle),
           matchedVehicle.capacity,
           matchedVehicle.cif_jpy * customsRateNum,
-          false,
+          yomWithinOneYear,
         ).total
       : null;
 
@@ -216,7 +242,7 @@ export default function QuotationPage() {
           Number(lcValue || 0) > matchedVehicle.cif_jpy
             ? Number(lcValue || 0) * customsRateNum
             : matchedVehicle.cif_jpy * customsRateNum,
-          false,
+          yomWithinOneYear,
         )
       : null;
 
@@ -291,6 +317,24 @@ export default function QuotationPage() {
               />
             </label>
           </div>
+
+          {fuel === "Series_Hybrid" && (
+            <label className="block">
+              <span className="block text-xs font-medium text-gray-500">YOM within 1 year?</span>
+              <select
+                value={yomWithinOneYear ? "Yes" : "No"}
+                onChange={(e) => {
+                  const within = e.target.value === "Yes";
+                  setYomWithinOneYear(within);
+                  recomputeDerived({ yomWithinOneYear: within });
+                }}
+                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </label>
+          )}
 
           <label className="block">
             <span className="block text-xs font-medium text-gray-500">Auction Grade</span>
@@ -407,9 +451,13 @@ export default function QuotationPage() {
               <span className="block text-xs font-medium text-gray-500">Customs JPY to LKR Rate</span>
               <input
                 value={customsRate}
-                onChange={(e) => setCustomsRate(e.target.value)}
+                onChange={(e) => {
+                  customsRateEdited.current = true;
+                  setCustomsRate(e.target.value);
+                }}
                 className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
+              {liveRateNote && <span className="mt-1 block text-xs text-emerald-700/60">{liveRateNote}</span>}
             </label>
           </div>
 
@@ -474,7 +522,7 @@ export default function QuotationPage() {
             </div>
           )}
           <p className="text-xs text-emerald-700/70">
-            Rates default from Settings. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
+            LC and TT Rates default from Settings; Customs Rate defaults to the live Customs rate. Tax Amount auto-fills from the vehicle&apos;s Yellow Book CIF (Depreciated FOB +
             Shipping &amp; Insurance) at the Customs rate — except when LC Value exceeds that Yellow Book CIF, where it
             uses LC Value at the Customs rate instead. Still editable if the actual duty differs.
           </p>
