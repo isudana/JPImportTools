@@ -25,6 +25,7 @@ const SECTIONS: ChecklistSection[] = [
           { id: "environment-certificate", label: "Environment certificate", notRequired: true },
           { id: "customs-assessment-notice", label: "Customs Assessment Notice" },
           { id: "customs-53", label: "Customs-53" },
+          { id: "commercial-invoice", label: "Commercial Invoice (RMV has requested this recently)" },
         ],
       },
     ],
